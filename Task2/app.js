@@ -8,6 +8,27 @@ import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers
 // ============================================
 const GAS_LOGGING_ENDPOINT = "https://script.google.com/macros/s/AKfycbw3mDO4KULHecQ4NlMzCzlfoCDuu_onEjMlsBd5tUZjWpVB97_s6jvxl2NzquEJULUY1Q/exec";
 
+const testPayload = {
+  timestamp: new Date().toISOString(),
+  review: "Test review for debugging",
+  sentiment: "POSITIVE",
+  confidence: 0.85,
+  meta: {
+    sessionId: "test_session",
+    userAgent: navigator.userAgent,
+    testMode: true
+  }
+};
+
+fetch(GAS_URL, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(testPayload)
+})
+.then(r => r.json())
+.then(data => console.log("✅ Response:", data))
+.catch(err => console.error("❌ Error:", err));
+
 // ============================================
 // Global variables
 // ============================================
@@ -357,3 +378,4 @@ function hideError() {
     errorElement.style.display = "none";
 
 }
+
