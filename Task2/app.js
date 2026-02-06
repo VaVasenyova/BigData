@@ -6,7 +6,7 @@ import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers
 // ============================================
 // CONFIGURATION - UPDATE THIS WITH YOUR GAS URL
 // ============================================
-const GAS_LOGGING_ENDPOINT = "https://script.google.com/macros/s/AKfycbzRq-Bmx5GGrE1Nyx5usic9AN_bjSVzGKA_pHbjs8eqks_gWLECBpvwtaFSvyEvPPcsNA/exec";
+const GAS_LOGGING_ENDPOINT = "https://script.google.com/macros/s/AKfycbw3mDO4KULHecQ4NlMzCzlfoCDuu_onEjMlsBd5tUZjWpVB97_s6jvxl2NzquEJULUY1Q/exec";
 
 // ============================================
 // Global variables
@@ -115,13 +115,13 @@ function loadReviews() {
                     console.log("Loaded", reviews.length, "reviews");
                 },
                 error: (error) => {
-                    console.error("TSV parse error: ", error);
+                    console.error("TSV parse error:", error);
                     showError("Failed to parse TSV file: " + error.message);
                 },
             });
         })
         .catch((error) => {
-            console.error("TSV load error: ", error);
+            console.error("TSV load error:", error);
             showError("Failed to load TSV file: " + error.message);
         });
 }
@@ -245,7 +245,7 @@ async function logToGoogleSheets(review, sentimentData) {
         const response = await fetch(GAS_LOGGING_ENDPOINT, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain',  // FIXED: Changed from 'application/json'
             },
             body: JSON.stringify(payload)
         });
@@ -355,7 +355,4 @@ function showError(message) {
 // ============================================
 function hideError() {
     errorElement.style.display = "none";
-
 }
-
-
