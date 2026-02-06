@@ -355,4 +355,5 @@ function showError(message) {
 // ============================================
 function hideError() {
     errorElement.style.display = "none";
+
 }
