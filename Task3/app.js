@@ -2,27 +2,31 @@
 let reviews = [];
 let apiToken = '';
 
-// DOM elements
+// DOM elements - безопасная инициализация
 const analyzeBtn = document.getElementById('analyze-btn');
 const reviewText = document.getElementById('review-text');
 const sentimentResult = document.getElementById('sentiment-result');
-const actionResult = document.getElementById('action-result'); // NEW
+const actionResult = document.getElementById('action-result');
 const loadingElement = document.querySelector('.loading');
 const errorElement = document.getElementById('error-message');
 const apiTokenInput = document.getElementById('api-token');
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
-    // Load the TSV file (Papa Parse 활성화)
+    // Load the TSV file (Papa Parse активирован через CDN)
     loadReviews();
     
-    // Set up event listeners
-    analyzeBtn.addEventListener('click', analyzeRandomReview);
-    apiTokenInput.addEventListener('change', saveApiToken);
+    // Set up event listeners - только если элементы существуют
+    if (analyzeBtn) {
+        analyzeBtn.addEventListener('click', analyzeRandomReview);
+    }
+    if (apiTokenInput) {
+        apiTokenInput.addEventListener('change', saveApiToken);
+    }
 
     // Load saved API token if exists
     const savedToken = localStorage.getItem('hfApiToken');
-    if (savedToken) {
+    if (savedToken && apiTokenInput) {
         apiTokenInput.value = savedToken;
         apiToken = savedToken;
     }
@@ -36,12 +40,13 @@ function loadReviews() {
             return response.text();
         })
         .then(tsvData => {
+            // Используем глобальный Papa из CDN
             Papa.parse(tsvData, {
                 header: true,
                 delimiter: '\t',
                 complete: (results) => {
                     reviews = results.data
-                        .map(row => row.text)
+                        .map(row => row.text || row.review || row.Text || row.Review)
                         .filter(text => text && text.trim() !== '');
                     console.log('Loaded', reviews.length, 'reviews');
                 },
@@ -53,25 +58,24 @@ function loadReviews() {
         })
         .catch(error => {
             console.error('TSV load error:', error);
-            showError('Failed to load TSV file: ' + error.message);
+            showError('Failed to load TSV file. Ensure "reviews_test.tsv" exists in the same folder.');
         });
 }
 
 // Save API token to localStorage
 function saveApiToken() {
-    apiToken = apiTokenInput.value.trim();
-    if (apiToken) {
-        localStorage.setItem('hfApiToken', apiToken);
-    } else {
-        localStorage.removeItem('hfApiToken');
+    if (apiTokenInput) {
+        apiToken = apiTokenInput.value.trim();
+        if (apiToken) {
+            localStorage.setItem('hfApiToken', apiToken);
+        } else {
+            localStorage.removeItem('hfApiToken');
+        }
     }
 }
 
 /**
  * Determines the appropriate business action based on sentiment analysis results.
- * 
- * Normalizes the AI output into a linear scale (0.0 to 1.0) to simplify
- * threshold comparisons.
  * 
  * @param {number} confidence - The confidence score returned by the API (0.0 to 1.0).
  * @param {string} label - The label returned by the API (e.g., "POSITIVE", "NEGATIVE").
@@ -79,13 +83,12 @@ function saveApiToken() {
  */
 function determineBusinessAction(confidence, label) {
     // 1. Normalize Score: Map everything to a 0 (Worst) to 1 (Best) scale.
-    // If Label is NEGATIVE, a high confidence means a VERY BAD score (near 0).
     let normalizedScore = 0.5; // Default neutral
 
     if (label === "POSITIVE") {
-        normalizedScore = confidence; // e.g., 0.9 -> 0.9 (Great)
+        normalizedScore = confidence;
     } else if (label === "NEGATIVE") {
-        normalizedScore = 1.0 - confidence; // e.g., 0.9 conf -> 0.1 (Terrible)
+        normalizedScore = 1.0 - confidence;
     }
 
     // 2. Apply Business Thresholds
@@ -123,22 +126,28 @@ function determineBusinessAction(confidence, label) {
 function analyzeRandomReview() {
     hideError();
     if (reviews.length === 0) {
-        showError('No reviews available. Please try again later.');
+        showError('No reviews available. Please load reviews first.');
         return;
     }
 
     const selectedReview = reviews[Math.floor(Math.random() * reviews.length)];
 
-    // Display the review
-    reviewText.textContent = selectedReview;
+    // Display the review - безопасная проверка
+    if (reviewText) {
+        reviewText.textContent = selectedReview;
+    }
 
     // Show loading state
-    loadingElement.style.display = 'block';
-    analyzeBtn.disabled = true;
-    sentimentResult.innerHTML = '';  // Reset previous result
-    sentimentResult.className = 'sentiment-result';  // Reset classes
-    actionResult.innerHTML = '';  // Reset action result
-    actionResult.style.display = 'none';
+    if (loadingElement) loadingElement.style.display = 'block';
+    if (analyzeBtn) analyzeBtn.disabled = true;
+    if (sentimentResult) {
+        sentimentResult.innerHTML = ''; 
+        sentimentResult.className = 'sentiment-result';
+    }
+    if (actionResult) {
+        actionResult.innerHTML = '';
+        actionResult.style.display = 'none';
+    }
 
     // Call Hugging Face API
     analyzeSentiment(selectedReview)
@@ -155,21 +164,25 @@ function analyzeRandomReview() {
         })
         .catch(error => {
             console.error('Error:', error);
-            showError('Failed to analyze sentiment: ' + error.message);
+            showError('Failed to analyze sentiment: ' + (error.message || error));
         })
         .finally(() => {
-            loadingElement.style.display = 'none';
-            analyzeBtn.disabled = false;
+            if (loadingElement) loadingElement.style.display = 'none';
+            if (analyzeBtn) analyzeBtn.disabled = false;
         });
 }
 
 // Call Hugging Face API for sentiment analysis
 async function analyzeSentiment(text) {
+    if (!apiToken) {
+        throw new Error('Please enter your Hugging Face API token first');
+    }
+
     const response = await fetch(
         'https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english',
         {
             headers: {
-                Authorization: apiToken ? `Bearer ${apiToken}` : undefined,
+                Authorization: `Bearer ${apiToken}`,
                 'Content-Type': 'application/json'
             },
             method: 'POST',
@@ -177,7 +190,8 @@ async function analyzeSentiment(text) {
         }
     );
     if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`API error ${response.status}: ${errorText || response.statusText}`);
     }
 
     const result = await response.json();
@@ -194,8 +208,8 @@ function displaySentiment(result) {
     // Parse the API response (format: [[{label: 'POSITIVE', score: 0.99}]])
     if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0]) && result[0].length > 0) {
         const sentimentData = result[0][0];
-        label = sentimentData.label?.toUpperCase() || 'NEUTRAL';
-        score = sentimentData.score ?? 0.5;
+        label = (sentimentData.label || '').toUpperCase();
+        score = sentimentData.score || 0.5;
         
         // Determine sentiment
         if (label === 'POSITIVE' && score > 0.5) {
@@ -206,11 +220,13 @@ function displaySentiment(result) {
     }
 
     // Update UI
-    sentimentResult.classList.add(sentiment);
-    sentimentResult.innerHTML = `
-        <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
-        <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
-    `;
+    if (sentimentResult) {
+        sentimentResult.classList.add(sentiment);
+        sentimentResult.innerHTML = `
+            <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
+            <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
+        `;
+    }
     
     return { label, score, sentiment };
 }
@@ -229,6 +245,8 @@ function getSentimentIcon(sentiment) {
 
 // Display business action result
 function displayAction(decision) {
+    if (!actionResult) return;
+    
     actionResult.style.display = 'block';
     actionResult.style.backgroundColor = decision.uiColor;
     actionResult.style.color = '#ffffff';
@@ -241,15 +259,17 @@ function displayAction(decision) {
         <div style="display: flex; align-items: center; gap: 15px;">
             <div style="font-size: 24px;">${getActionEmoji(decision.actionCode)}</div>
             <div>
-                <h3 style="margin: 0 0 10px 0; font-size: 18px;">System Decision</h3>
+                <h3 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 600;">System Decision</h3>
                 <p style="margin: 0; font-size: 16px;">${decision.uiMessage}</p>
             </div>
         </div>
         <div style="margin-top: 15px; text-align: center;">
             <a href="${decision.buttonLink}" 
+               onclick="event.preventDefault(); alert('Demo action triggered: ${decision.actionCode}');"
                style="display: inline-block; padding: 10px 20px; background: white; 
                       color: ${decision.uiColor}; text-decoration: none; 
-                      border-radius: 5px; font-weight: bold; border: 2px solid white;">
+                      border-radius: 5px; font-weight: bold; border: 2px solid white;
+                      cursor: pointer; transition: all 0.2s;">
                 ${decision.buttonText}
             </a>
         </div>
@@ -273,6 +293,14 @@ function getActionEmoji(actionCode) {
 // Log data to Google Sheets via Apps Script
 async function logToGoogleSheet(review, sentimentData, decision) {
     try {
+        // ЗАМЕНИТЕ НА ВАШ РЕАЛЬНЫЙ URL ВЕБ-ПРИЛОЖЕНИЯ!
+        const scriptUrl = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+        
+        if (scriptUrl.includes('YOUR_GOOGLE')) {
+            console.warn('⚠️ Google Sheets logging disabled: replace scriptUrl with your actual Web App URL');
+            return;
+        }
+
         const logData = {
             review: review,
             sentiment: sentimentData.label,
@@ -286,9 +314,6 @@ async function logToGoogleSheet(review, sentimentData, decision) {
             }
         };
 
-        // Replace with your actual Apps Script Web App URL
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbwutXlICXZ4hKF9zU0BOpUZWz_zleOt0v19wYI3HoHju6ril9MIrZkVUcIrNZ8vsj7kzA/exec';
-        
         const response = await fetch(scriptUrl, {
             method: 'POST',
             headers: {
@@ -300,20 +325,26 @@ async function logToGoogleSheet(review, sentimentData, decision) {
         if (!response.ok) {
             console.warn('Failed to log to Google Sheets:', response.statusText);
         } else {
-            console.log('Successfully logged to Google Sheets');
+            console.log('✅ Successfully logged to Google Sheets:', decision.actionCode);
         }
     } catch (error) {
-        console.warn('Error logging to Google Sheets:', error);
+        console.warn('⚠️ Error logging to Google Sheets (non-critical):', error.message);
     }
 }
 
 // Show error message
 function showError(message) {
-    errorElement.textContent = message;
-    errorElement.style.display = 'block';
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+    } else {
+        console.error('UI Error:', message);
+    }
 }
 
 // Hide error message
 function hideError() {
-    errorElement.style.display = 'none';
+    if (errorElement) {
+        errorElement.style.display = 'none';
+    }
 }
