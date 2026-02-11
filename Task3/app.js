@@ -293,7 +293,6 @@ function getActionEmoji(actionCode) {
 // Log data to Google Sheets via Apps Script
 async function logToGoogleSheet(review, sentimentData, decision) {
     try {
-        // ЗАМЕНИТЕ НА ВАШ РЕАЛЬНЫЙ URL ВЕБ-ПРИЛОЖЕНИЯ!
         const scriptUrl = 'https://script.google.com/macros/s/AKfycbwutXlICXZ4hKF9zU0BOpUZWz_zleOt0v19wYI3HoHju6ril9MIrZkVUcIrNZ8vsj7kzA/exec';
         
         if (scriptUrl.includes('YOUR_GOOGLE')) {
