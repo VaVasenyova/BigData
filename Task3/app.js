@@ -2,11 +2,11 @@
 let reviews = [];
 let apiToken = '';
 
-// DOM elements - безопасная инициализация
+// DOM elements
 const analyzeBtn = document.getElementById('analyze-btn');
 const reviewText = document.getElementById('review-text');
 const sentimentResult = document.getElementById('sentiment-result');
-const actionResult = document.getElementById('action-result');
+const actionResult = document.getElementById('action-result'); // NEW
 const loadingElement = document.querySelector('.loading');
 const errorElement = document.getElementById('error-message');
 const apiTokenInput = document.getElementById('api-token');
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load the TSV file (Papa Parse активирован через CDN)
     loadReviews();
     
-    // Set up event listeners - только если элементы существуют
+    // Set up event listeners
     if (analyzeBtn) {
         analyzeBtn.addEventListener('click', analyzeRandomReview);
     }
@@ -132,7 +132,7 @@ function analyzeRandomReview() {
 
     const selectedReview = reviews[Math.floor(Math.random() * reviews.length)];
 
-    // Display the review - безопасная проверка
+    // Display the review
     if (reviewText) {
         reviewText.textContent = selectedReview;
     }
@@ -179,7 +179,7 @@ async function analyzeSentiment(text) {
     }
 
     const response = await fetch(
-        'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6/dist/transformers.min.js',
+        'https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english',
         {
             headers: {
                 Authorization: `Bearer ${apiToken}`,
@@ -293,9 +293,10 @@ function getActionEmoji(actionCode) {
 // Log data to Google Sheets via Apps Script
 async function logToGoogleSheet(review, sentimentData, decision) {
     try {
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbwutXlICXZ4hKF9zU0BOpUZWz_zleOt0v19wYI3HoHju6ril9MIrZkVUcIrNZ8vsj7kzA/exec';
+        // ЗАМЕНИТЕ НА ВАШ РЕАЛЬНЫЙ URL ВЕБ-ПРИЛОЖЕНИЯ!
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbyaMw-7p2syxPKqnvP66LNjGB3jdTS2D_Yt_LwEBbC-OJn9v6xOzVe12zGqnUuM9sUOzw/exec';
         
-        if (scriptUrl.includes('YOUR_GOOGLE')) {
+        if (scriptUrl.includes('YOUR_DEPLOYMENT')) {
             console.warn('⚠️ Google Sheets logging disabled: replace scriptUrl with your actual Web App URL');
             return;
         }
