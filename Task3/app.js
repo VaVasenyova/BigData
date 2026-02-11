@@ -1,19 +1,16 @@
-// app.js (ES module version using transformers.js for local sentiment classification)
-// WITH GOOGLE SHEETS EVENT LOGGING INTEGRATION
-
-import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6/dist/transformers.min.js";
+// app.js - Remote Hugging Face API version with Business Decision Logic
+// Uses API token + internet for each request (no local model)
 
 // ============================================
 // CONFIGURATION - UPDATE THIS WITH YOUR GAS URL
 // ============================================
-const GAS_LOGGING_ENDPOINT = "https://script.google.com/macros/s/AKfycbxtbOsldP8_1JFKE_fjCPfkFq6eTgIhlfbEN-seVJJ-2PS3d9EbQHkhA7f1_z_1FUR_Ng/exec";
+const GAS_LOGGING_ENDPOINT = "https://script.google.com/macros/s/AKfycbw3mDO4KULHecQ4NlMzCzlfoCDuu_onEjMlsBd5tUZjWpVB97_s6jvxl2NzquEJULUY1Q/exec";
 
 // ============================================
 // STATE MANAGEMENT
 // ============================================
 let reviews = [];
-let sentimentClassifier = null;
-let isModelLoading = false;
+let apiToken = '';
 
 // ============================================
 // DOM ELEMENTS
@@ -24,82 +21,74 @@ const sentimentResult = document.getElementById('sentiment-result');
 const actionResult = document.getElementById('action-result');
 const loadingElement = document.querySelector('.loading');
 const errorElement = document.getElementById('error-message');
-const modelStatus = document.getElementById('model-status');
+const apiTokenInput = document.getElementById('api-token');
 
 // ============================================
 // INITIALIZATION
 // ============================================
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
     // Load reviews from TSV
-    await loadReviews();
+    loadReviews();
     
-    // Initialize sentiment classifier
-    await initSentimentModel();
-    
-    // Set up event listener
+    // Set up event listeners
     if (analyzeBtn) {
         analyzeBtn.addEventListener('click', analyzeRandomReview);
+    }
+    if (apiTokenInput) {
+        apiTokenInput.addEventListener('change', saveApiToken);
+    }
+
+    // Load saved API token if exists
+    const savedToken = localStorage.getItem('hfApiToken');
+    if (savedToken && apiTokenInput) {
+        apiTokenInput.value = savedToken;
+        apiToken = savedToken;
     }
 });
 
 // ============================================
 // DATA LOADING
 // ============================================
-async function loadReviews() {
-    try {
-        const response = await fetch('reviews_test.tsv');
-        if (!response.ok) throw new Error('Failed to load TSV file');
-        
-        const tsvData = await response.text();
-        
-        // Parse TSV using Papa Parse (loaded from CDN in HTML)
-        Papa.parse(tsvData, {
-            header: true,
-            delimiter: '\t',
-            complete: (results) => {
-                reviews = results.data
-                    .map(row => row.text || row.review || row.Text || row.Review)
-                    .filter(text => text && text.trim() !== '');
-                console.log('✅ Loaded', reviews.length, 'reviews');
-            },
-            error: (error) => {
-                console.error('TSV parse error:', error);
-                showError('Failed to parse TSV file: ' + error.message);
-            }
+function loadReviews() {
+    fetch('reviews_test.tsv')
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load TSV file');
+            return response.text();
+        })
+        .then(tsvData => {
+            // Parse TSV using Papa Parse (loaded from CDN in HTML)
+            Papa.parse(tsvData, {
+                header: true,
+                delimiter: '\t',
+                complete: (results) => {
+                    reviews = results.data
+                        .map(row => row.text || row.review || row.Text || row.Review)
+                        .filter(text => text && text.trim() !== '');
+                    console.log('✅ Loaded', reviews.length, 'reviews');
+                },
+                error: (error) => {
+                    console.error('TSV parse error:', error);
+                    showError('Failed to parse TSV file: ' + error.message);
+                }
+            });
+        })
+        .catch(error => {
+            console.error('TSV load error:', error);
+            showError('Failed to load TSV file. Ensure "reviews_test.tsv" exists in the same folder.');
         });
-    } catch (error) {
-        console.error('TSV load error:', error);
-        showError('Failed to load TSV file: ' + error.message);
-    }
 }
 
 // ============================================
-// SENTIMENT MODEL INITIALIZATION
+// TOKEN MANAGEMENT
 // ============================================
-async function initSentimentModel() {
-    if (isModelLoading || sentimentClassifier) return;
-    
-    isModelLoading = true;
-    updateModelStatus('⏳ Loading sentiment model...', 'loading');
-    
-    try {
-        console.log('🔍 Initializing sentiment classifier...');
-        sentimentClassifier = await pipeline('sentiment-analysis');
-        console.log('✅ Sentiment classifier ready!');
-        updateModelStatus('✅ Model ready', 'ready');
-    } catch (error) {
-        console.error('Failed to load sentiment model:', error);
-        updateModelStatus('❌ Model load failed: ' + error.message, 'error');
-        showError('Failed to load sentiment model: ' + error.message);
-    } finally {
-        isModelLoading = false;
-    }
-}
-
-function updateModelStatus(message, statusClass) {
-    if (modelStatus) {
-        modelStatus.textContent = message;
-        modelStatus.className = 'model-status ' + statusClass;
+function saveApiToken() {
+    if (apiTokenInput) {
+        apiToken = apiTokenInput.value.trim();
+        if (apiToken) {
+            localStorage.setItem('hfApiToken', apiToken);
+        } else {
+            localStorage.removeItem('hfApiToken');
+        }
     }
 }
 
@@ -109,8 +98,8 @@ function updateModelStatus(message, statusClass) {
 /**
  * Determines the appropriate business action based on sentiment analysis results.
  * 
- * @param {number} confidence - The confidence score returned by the model (0.0 to 1.0).
- * @param {string} label - The label returned by the model (e.g., "POSITIVE", "NEGATIVE").
+ * @param {number} confidence - The confidence score returned by the API (0.0 to 1.0).
+ * @param {string} label - The label returned by the API (e.g., "POSITIVE", "NEGATIVE").
  * @returns {object} An object containing the action metadata (code, message, color).
  */
 function determineBusinessAction(confidence, label) {
@@ -157,15 +146,8 @@ function determineBusinessAction(confidence, label) {
 // ============================================
 // ANALYSIS WORKFLOW
 // ============================================
-async function analyzeRandomReview() {
+function analyzeRandomReview() {
     hideError();
-    
-    // Check if model is ready
-    if (!sentimentClassifier) {
-        showError('Sentiment model is not ready yet. Please wait...');
-        return;
-    }
-    
     if (reviews.length === 0) {
         showError('No reviews available. Please load reviews first.');
         return;
@@ -190,68 +172,78 @@ async function analyzeRandomReview() {
         actionResult.style.display = 'none';
     }
 
-    try {
-        // Analyze sentiment using local model
-        const sentimentData = await analyzeSentiment(selectedReview);
-        
-        // Determine business action
-        const decision = determineBusinessAction(sentimentData.score, sentimentData.label);
-        
-        // Display results
-        displaySentiment(sentimentData);
-        displayAction(decision);
-        
-        // Log to Google Sheets
-        await logToGoogleSheet(selectedReview, sentimentData, decision);
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showError('Failed to analyze sentiment: ' + (error.message || error));
-    } finally {
-        if (loadingElement) loadingElement.style.display = 'none';
-        if (analyzeBtn) analyzeBtn.disabled = false;
-    }
+    // Call Hugging Face API
+    analyzeSentiment(selectedReview)
+        .then(result => {
+            const sentimentData = displaySentiment(result);
+            // Determine business action
+            const decision = determineBusinessAction(sentimentData.score, sentimentData.label);
+            
+            // Display the action
+            displayAction(decision);
+            
+            // Log to Google Sheets
+            logToGoogleSheet(selectedReview, sentimentData, decision);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Failed to analyze sentiment: ' + (error.message || error));
+        })
+        .finally(() => {
+            if (loadingElement) loadingElement.style.display = 'none';
+            if (analyzeBtn) analyzeBtn.disabled = false;
+        });
 }
 
 // ============================================
-// SENTIMENT ANALYSIS (LOCAL MODEL)
+// SENTIMENT ANALYSIS (REMOTE API)
 // ============================================
 async function analyzeSentiment(text) {
-    console.log('🔍 Analyzing sentiment for:', text.substring(0, 50) + '...');
-    
-    try {
-        // Use local transformers.js model
-        const result = await sentimentClassifier(text);
-        
-        console.log('📊 Model result:', result);
-        
-        // Parse the result
-        if (Array.isArray(result) && result.length > 0) {
-            const sentimentData = result[0];
-            const label = sentimentData.label?.toUpperCase() || 'NEUTRAL';
-            const score = sentimentData.score || 0.5;
-            
-            return { label, score };
-        } else {
-            throw new Error('Unexpected model output format');
-        }
-    } catch (error) {
-        console.error('Sentiment analysis error:', error);
-        throw new Error('Failed to analyze sentiment: ' + error.message);
+    if (!apiToken) {
+        throw new Error('Please enter your Hugging Face API token first');
     }
+
+    const response = await fetch(
+        'https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english',
+        {
+            headers: {
+                Authorization: `Bearer ${apiToken}`,
+                'Content-Type': 'application/json'
+            },
+            method: 'POST',
+            body: JSON.stringify({ inputs: text }),
+        }
+    );
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error ${response.status}: ${errorText || response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result;
 }
 
 // ============================================
 // UI DISPLAY FUNCTIONS
 // ============================================
-function displaySentiment(sentimentData) {
+function displaySentiment(result) {
+    // Default to neutral if we can't parse the result
     let sentiment = 'neutral';
+    let score = 0.5;
+    let label = 'NEUTRAL';
     
-    // Determine sentiment class
-    if (sentimentData.label === 'POSITIVE' && sentimentData.score > 0.5) {
-        sentiment = 'positive';
-    } else if (sentimentData.label === 'NEGATIVE' && sentimentData.score > 0.5) {
-        sentiment = 'negative';
+    // Parse the API response (format: [[{label: 'POSITIVE', score: 0.99}]])
+    if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0]) && result[0].length > 0) {
+        const sentimentData = result[0][0];
+        label = (sentimentData.label || '').toUpperCase();
+        score = sentimentData.score || 0.5;
+        
+        // Determine sentiment
+        if (label === 'POSITIVE' && score > 0.5) {
+            sentiment = 'positive';
+        } else if (label === 'NEGATIVE' && score > 0.5) {
+            sentiment = 'negative';
+        }
     }
 
     // Update UI
@@ -259,11 +251,11 @@ function displaySentiment(sentimentData) {
         sentimentResult.classList.add(sentiment);
         sentimentResult.innerHTML = `
             <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
-            <span>${sentimentData.label} (${(sentimentData.score * 100).toFixed(1)}% confidence)</span>
+            <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
         `;
     }
     
-    return { ...sentimentData, sentiment };
+    return { label, score, sentiment };
 }
 
 function getSentimentIcon(sentiment) {
