@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentiment Decision Maker</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+</head>
+
+<body>
+  <div class="header">
+    <div>
+      <h1>🤖 Sentiment Decision Maker</h1>
+      <p>AI-powered sentiment analysis with automated business actions</p>
+    </div>
+    <div class="status" id="model-status">Loading model...</div>
+  </div>
+
+  <div class="grid">
+    <!-- Left Column: Logic Instruction -->
+    <div class="panel">
+      <h2>1. Logic Instruction (Editable)</h2>
+      <p>Define your rules using <code>IF ... THEN ...</code> syntax. The system executes them in order.</p>
+      <textarea id="instruction" spellcheck="false"></textarea>
+      <div class="controls">
+        <button id="runBtn">▶ Run Simulation</button>
+        <span class="status" id="status">Ready</span>
+      </div>
+      <details>
+        <summary>🎯 Mission: Maximize Policy Score</summary>
+        <p><strong>Goal:</strong> Reduce budget while keeping high-risk customers safe.</p>
+        <p><strong>Strategy:</strong> Edit the logic in <code>[RULES]</code> to target actions better.</p>
+        <p><strong>Scoring:</strong></p>
+        <ul>
+          <li>+ Safety (High Risk Coverage)</li>
+          <li>+ Efficiency (Budget Savings)</li>
+          <li>- Penalty (Over Budget)</li>
+        </ul>
+      </details>
+    </div>
+
+    <!-- Left Column: Documentation (Mermaid) -->
+    <div class="panel">
+      <h2>2. Documentation (Mermaid)</h2>
+      <p>Visualize your logic flow. Update the <code>[MERMAID]</code> block to match your rules.</p>
+      <div class="diagram" id="diagram"></div>
+    </div>
+
+    <!-- Right Column: Simulation Results -->
+    <div class="panel">
+      <h2>3. Sentiment Analysis & Business Actions</h2>
+
+      <!-- Sentiment Analysis Section -->
+      <div class="sentiment-section">
+        <h3>💬 Analyze Random Review</h3>
+        <button id="analyze-btn" class="action-btn">
+          <i class="fas fa-magic"></i> Analyze Random Review
+        </button>
+
+        <div class="loading" style="display: none;">
+          <div class="spinner"></div>
+          <span>Analyzing sentiment...</span>
+        </div>
+
+        <div id="error-message" class="error-message" style="display: none;"></div>
+
+        <div class="review-display">
+          <h4>Selected Review:</h4>
+          <p id="review-text" class="review-text">Click the button above to analyze a random review</p>
+        </div>
+
+        <div id="sentiment-result" class="sentiment-result">
+          Sentiment will appear here
+        </div>
+
+        <div id="business-action" class="business-action">
+          Business action will appear here
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-label">Policy Score</div>
+          <div class="kpi-value" id="kpiScore">0</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">High-Risk Coverage</div>
+          <div class="kpi-value" id="kpiCoverage">0%</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Total Budget</div>
+          <div class="kpi-value" id="kpiBudget">$0</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Simulated Rows</div>
+          <div class="kpi-value" id="kpiRows">0</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Avg Cost/User</div>
+          <div class="kpi-value" id="kpiAvgCost">$0</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Total Actions</div>
+          <div class="kpi-value" id="kpiActions">0</div>
+        </div>
+      </div>
+
+      <!-- Offer Distribution -->
+      <h3>Offer Distribution</h3>
+      <pre class="codebox" id="offerCounts">{}</pre>
+
+      <!-- Sample Output Table -->
+      <h3>Sample Output (Top 15)</h3>
+      <div class="tableWrap">
+        <table id="outTable">
+          <thead>
+            <tr>
+              <th>customer_id</th>
+              <th>segment</th>
+              <th>monthly_charges</th>
+              <th>tenure</th>
+              <th>contract</th>
+              <th>churn_score</th>
+              <th>sentiment</th>
+              <th>confidence</th>
+              <th>action</th>
+              <th>cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Filled by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+
+</html>
