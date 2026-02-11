@@ -1,371 +1,453 @@
-// app.js - Remote Hugging Face API version with Business Decision Logic
-// Uses API token + internet for each request (no local model)
+// app.js (ES module version using transformers.js for local sentiment classification)
+// WITH GOOGLE SHEETS EVENT LOGGING INTEGRATION AND BUSINESS LOGIC
+import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6/dist/transformers.min.js";
 
 // ============================================
 // CONFIGURATION - UPDATE THIS WITH YOUR GAS URL
 // ============================================
-const GAS_LOGGING_ENDPOINT = "https://script.google.com/macros/s/AKfycbw3mDO4KULHecQ4NlMzCzlfoCDuu_onEjMlsBd5tUZjWpVB97_s6jvxl2NzquEJULUY1Q/exec";
-
+const GAS_LOGGING_ENDPOINT = "https://script.google.com/macros/s/AKfycby-HqoU_s2AKXYHvqK4qWy_iJnTABy5O_crSts0KFumi8Sxra2p0X15mgtidO2UJ2TyOA/exec";
 // ============================================
-// STATE MANAGEMENT
+// Global variables
 // ============================================
 let reviews = [];
-let apiToken = '';
+let apiToken = ""; // kept for UI compatibility, but not used with local inference
+let sentimentPipeline = null; // transformers.js text-classification pipeline
+let sessionId = generateSessionId(); // Unique session identifier
 
 // ============================================
-// DOM ELEMENTS
+// DOM elements
 // ============================================
-const analyzeBtn = document.getElementById('analyze-btn');
-const reviewText = document.getElementById('review-text');
-const sentimentResult = document.getElementById('sentiment-result');
-const actionResult = document.getElementById('action-result');
-const loadingElement = document.querySelector('.loading');
-const errorElement = document.getElementById('error-message');
-const apiTokenInput = document.getElementById('api-token');
+const analyzeBtn = document.getElementById("analyze-btn");
+const reviewText = document.getElementById("review-text");
+const sentimentResult = document.getElementById("sentiment-result");
+const loadingElement = document.getElementById("loading");
+const errorElement = document.getElementById("error-message");
+const apiTokenInput = document.getElementById("api-token");
 
 // ============================================
-// INITIALIZATION
+// Initialize the app
 // ============================================
-document.addEventListener('DOMContentLoaded', function() {
-    // Load reviews from TSV
+document.addEventListener("DOMContentLoaded", function () {
+    // Load the TSV file (Papa Parse)
     loadReviews();
     
     // Set up event listeners
-    if (analyzeBtn) {
-        analyzeBtn.addEventListener('click', analyzeRandomReview);
-    }
-    if (apiTokenInput) {
-        apiTokenInput.addEventListener('change', saveApiToken);
-    }
+    analyzeBtn.addEventListener("click", analyzeRandomReview);
+    apiTokenInput.addEventListener("change", saveApiToken);
 
-    // Load saved API token if exists
-    const savedToken = localStorage.getItem('hfApiToken');
-    if (savedToken && apiTokenInput) {
+    // Load saved API token if exists (not used with local inference but kept for UI)
+    const savedToken = localStorage.getItem("hfApiToken");
+    if (savedToken) {
         apiTokenInput.value = savedToken;
         apiToken = savedToken;
     }
+
+    // Initialize transformers.js sentiment model
+    initSentimentModel();
 });
 
 // ============================================
-// DATA LOADING
+// Session ID generation
+// ============================================
+function generateSessionId() {
+    // Try to get existing session ID from localStorage
+    let id = localStorage.getItem("sessionId");
+    if (!id) {
+        // Generate new ID: timestamp + random string
+        id = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem("sessionId", id);
+    }
+    return id;
+}
+
+// ============================================
+// Initialize transformers.js sentiment model
+// ============================================
+async function initSentimentModel() {
+    try {
+        console.log("Loading sentiment model...");
+        
+        // Use a transformers.js-supported text-classification model.
+        // Xenova/distilbert-base-uncased-finetuned-sst-2-english is a common choice.
+        sentimentPipeline = await pipeline(
+            "text-classification",
+            "Xenova/distilbert-base-uncased-finetuned-sst-2-english"
+        );
+
+        console.log("Sentiment model ready");
+    } catch (error) {
+        console.error("Failed to load sentiment model:", error);
+        showError(
+            "Failed to load sentiment model. Please check your network connection and try again."
+        );
+    }
+}
+
+// ============================================
+// Load and parse the TSV file using Papa Parse
 // ============================================
 function loadReviews() {
-    fetch('reviews_test.tsv')
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to load TSV file');
+    fetch("reviews_test.tsv")
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error("Failed to load TSV file");
+            }
             return response.text();
         })
-        .then(tsvData => {
-            // Parse TSV using Papa Parse (loaded from CDN in HTML)
+        .then((tsvData) => {
             Papa.parse(tsvData, {
                 header: true,
-                delimiter: '\t',
+                delimiter: "\t",
                 complete: (results) => {
                     reviews = results.data
-                        .map(row => row.text || row.review || row.Text || row.Review)
-                        .filter(text => text && text.trim() !== '');
-                    console.log('✅ Loaded', reviews.length, 'reviews');
+                        .map((row) => row.text)
+                        .filter((text) => typeof text === "string" && text.trim() !== "");
+                    console.log("Loaded", reviews.length, "reviews");
                 },
                 error: (error) => {
-                    console.error('TSV parse error:', error);
-                    showError('Failed to parse TSV file: ' + error.message);
-                }
+                    console.error("TSV parse error: ", error);
+                    showError("Failed to parse TSV file: " + error.message);
+                },
             });
         })
-        .catch(error => {
-            console.error('TSV load error:', error);
-            showError('Failed to load TSV file. Ensure "reviews_test.tsv" exists in the same folder.');
+        .catch((error) => {
+            console.error("TSV load error: ", error);
+            showError("Failed to load TSV file: " + error.message);
         });
 }
 
 // ============================================
-// TOKEN MANAGEMENT
+// Save API token to localStorage
 // ============================================
 function saveApiToken() {
-    if (apiTokenInput) {
-        apiToken = apiTokenInput.value.trim();
-        if (apiToken) {
-            localStorage.setItem('hfApiToken', apiToken);
-        } else {
-            localStorage.removeItem('hfApiToken');
-        }
-    }
-}
-
-// ============================================
-// BUSINESS LOGIC - DETERMINE ACTION
-// ============================================
-/**
- * Determines the appropriate business action based on sentiment analysis results.
- * 
- * @param {number} confidence - The confidence score returned by the API (0.0 to 1.0).
- * @param {string} label - The label returned by the API (e.g., "POSITIVE", "NEGATIVE").
- * @returns {object} An object containing the action metadata (code, message, color).
- */
-function determineBusinessAction(confidence, label) {
-    // 1. Normalize Score: Map everything to a 0 (Worst) to 1 (Best) scale.
-    let normalizedScore = 0.5; // Default neutral
-
-    if (label === "POSITIVE") {
-        normalizedScore = confidence;
-    } else if (label === "NEGATIVE") {
-        normalizedScore = 1.0 - confidence;
-    }
-
-    // 2. Apply Business Thresholds
-    if (normalizedScore <= 0.4) {
-        // CASE: Critical Churn Risk
-        return {
-            actionCode: "OFFER_COUPON",
-            uiMessage: "🚨 We are truly sorry. Please accept this 50% discount coupon.",
-            uiColor: "#ef4444", // Red
-            buttonText: "Get 50% Off",
-            buttonLink: "#coupon"
-        };
-    } else if (normalizedScore < 0.7) {
-        // CASE: Ambiguous / Neutral
-        return {
-            actionCode: "REQUEST_FEEDBACK",
-            uiMessage: "📝 Thank you! Could you tell us how we can improve?",
-            uiColor: "#6b7280", // Gray
-            buttonText: "Take Survey",
-            buttonLink: "#feedback"
-        };
+    apiToken = apiTokenInput.value.trim();
+    if (apiToken) {
+        localStorage.setItem("hfApiToken", apiToken);
     } else {
-        // CASE: Happy Customer
-        return {
-            actionCode: "ASK_REFERRAL",
-            uiMessage: "⭐ Glad you liked it! Refer a friend and earn rewards.",
-            uiColor: "#3b82f6", // Blue
-            buttonText: "Refer a Friend",
-            buttonLink: "#referral"
-        };
+        localStorage.removeItem("hfApiToken");
     }
 }
 
 // ============================================
-// ANALYSIS WORKFLOW
+// Determine business action based on sentiment
+// ============================================
+function determineBusinessAction(score, label) {
+    // Normalize score to 0-1 "Positivity Index"
+    // NEGATIVE label: invert score (high confidence negative = low positivity)
+    // POSITIVE label: use as is (high confidence positive = high positivity)
+    let normalizedScore;
+    
+    if (label === "NEGATIVE") {
+        normalizedScore = 1 - score; // Invert for negativity
+    } else if (label === "POSITIVE") {
+        normalizedScore = score; // Use directly
+    } else {
+        normalizedScore = 0.5; // Neutral baseline
+    }
+    
+    let actionCode, uiMessage, color, icon, buttonText, buttonLink;
+    
+    // Business logic based on normalized score
+    if (normalizedScore <= 0.4) {
+        // NEGATIVE (High Confidence) - Churn Risk
+        actionCode = "OFFER_COUPON";
+        uiMessage = "🚨 We're sorry to hear this! Here's a 50% off coupon to make it right.";
+        color = "#FF4444"; // Red
+        icon = "🚨";
+        buttonText = "Get 50% Off";
+        buttonLink = "#coupon-modal"; // or actual coupon link
+    } else if (normalizedScore < 0.7) {
+        // NEUTRAL / Low Confidence - Uncertain
+        actionCode = "REQUEST_FEEDBACK";
+        uiMessage = "📝 We'd love to hear more details. Please take our quick survey to help us improve.";
+        color = "#FFA500"; // Orange
+        icon = "📝";
+        buttonText = "Take Survey";
+        buttonLink = "https://forms.gle/your-survey-link";
+    } else {
+        // POSITIVE (High Confidence) - Loyal
+        actionCode = "ASK_REFERRAL";
+        uiMessage = "⭐ Thank you for your positive feedback! Refer a friend and get rewards!";
+        color = "#4CAF50"; // Green
+        icon = "⭐";
+        buttonText = "Refer a Friend";
+        buttonLink = "#referral-program";
+    }
+    
+    return {
+        actionCode,
+        uiMessage,
+        color,
+        icon,
+        buttonText,
+        buttonLink,
+        normalizedScore
+    };
+}
+
+// ============================================
+// Analyze a random review (MAIN FUNCTION)
 // ============================================
 function analyzeRandomReview() {
     hideError();
-    if (reviews.length === 0) {
-        showError('No reviews available. Please load reviews first.');
+    
+    if (!Array.isArray(reviews) || reviews.length === 0) {
+        showError("No reviews available. Please try again later.");
         return;
     }
 
+    if (!sentimentPipeline) {
+        showError("Sentiment model is not ready yet. Please wait a moment.");
+        return;
+    }
+
+    // Select random review
     const selectedReview = reviews[Math.floor(Math.random() * reviews.length)];
 
     // Display the review
-    if (reviewText) {
-        reviewText.textContent = selectedReview;
-    }
+    reviewText.textContent = selectedReview;
 
     // Show loading state
-    if (loadingElement) loadingElement.style.display = 'block';
-    if (analyzeBtn) analyzeBtn.disabled = true;
-    if (sentimentResult) {
-        sentimentResult.innerHTML = ''; 
-        sentimentResult.className = 'sentiment-result';
-    }
-    if (actionResult) {
-        actionResult.innerHTML = '';
-        actionResult.style.display = 'none';
-    }
+    loadingElement.style.display = "block";
+    analyzeBtn.disabled = true;
+    sentimentResult.innerHTML = " "; // Reset previous result
+    sentimentResult.className = "sentiment-result"; // Reset classes
 
-    // Call Hugging Face API
+    // Hide previous action result
+    document.getElementById("action-result").style.display = "none";
+
+    // Call local sentiment model (transformers.js)
     analyzeSentiment(selectedReview)
-        .then(result => {
-            const sentimentData = displaySentiment(result);
-            // Determine business action
-            const decision = determineBusinessAction(sentimentData.score, sentimentData.label);
-            
-            // Display the action
-            displayAction(decision);
-            
+        .then((result) => {
+            // Display sentiment to user
+            displaySentiment(result);
+
+            // Extract sentiment data for logging
+            const sentimentData = extractSentimentData(result);
+
             // Log to Google Sheets
-            logToGoogleSheet(selectedReview, sentimentData, decision);
+            logToGoogleSheets(selectedReview, sentimentData);
         })
-        .catch(error => {
-            console.error('Error:', error);
-            showError('Failed to analyze sentiment: ' + (error.message || error));
+        .catch((error) => {
+            console.error("Error: ", error);
+            showError(error.message || "Failed to analyze sentiment.");
         })
         .finally(() => {
-            if (loadingElement) loadingElement.style.display = 'none';
-            if (analyzeBtn) analyzeBtn.disabled = false;
+            loadingElement.style.display = "none";
+            analyzeBtn.disabled = false;
         });
 }
 
 // ============================================
-// SENTIMENT ANALYSIS (REMOTE API)
+// Extract sentiment data from model output
 // ============================================
-async function analyzeSentiment(text) {
-    if (!apiToken) {
-        throw new Error('Please enter your Hugging Face API token first');
-    }
-
-    const response = await fetch(
-        'https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english',
-        {
-            headers: {
-                Authorization: `Bearer ${apiToken}`,
-                'Content-Type': 'application/json'
-            },
-            method: 'POST',
-            body: JSON.stringify({ inputs: text }),
-        }
-    );
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API error ${response.status}: ${errorText || response.statusText}`);
-    }
-
-    const result = await response.json();
-    return result;
-}
-
-// ============================================
-// UI DISPLAY FUNCTIONS
-// ============================================
-function displaySentiment(result) {
-    // Default to neutral if we can't parse the result
-    let sentiment = 'neutral';
+function extractSentimentData(result) {
+    let sentiment = "NEUTRAL";
     let score = 0.5;
-    let label = 'NEUTRAL';
     
-    // Parse the API response (format: [[{label: 'POSITIVE', score: 0.99}]])
-    if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0]) && result[0].length > 0) {
+    // Expected format: [[{label: 'POSITIVE', score: 0.99}]]
+    if (
+        Array.isArray(result) &&
+        result.length > 0 &&
+        Array.isArray(result[0]) &&
+        result[0].length > 0
+    ) {
         const sentimentData = result[0][0];
-        label = (sentimentData.label || '').toUpperCase();
-        score = sentimentData.score || 0.5;
-        
-        // Determine sentiment
-        if (label === 'POSITIVE' && score > 0.5) {
-            sentiment = 'positive';
-        } else if (label === 'NEGATIVE' && score > 0.5) {
-            sentiment = 'negative';
+        if (sentimentData && typeof sentimentData === "object") {
+            sentiment = typeof sentimentData.label === "string"
+                ? sentimentData.label.toUpperCase()
+                : "NEUTRAL";
+            score = typeof sentimentData.score === "number"
+                ? sentimentData.score
+                : 0.5;
         }
     }
-
-    // Update UI
-    if (sentimentResult) {
-        sentimentResult.classList.add(sentiment);
-        sentimentResult.innerHTML = `
-            <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
-            <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
-        `;
-    }
     
-    return { label, score, sentiment };
-}
-
-function getSentimentIcon(sentiment) {
-    switch(sentiment) {
-        case 'positive':
-            return 'fa-thumbs-up';
-        case 'negative':
-            return 'fa-thumbs-down';
-        default:
-            return 'fa-question-circle';
-    }
-}
-
-function displayAction(decision) {
-    if (!actionResult) return;
+    // Determine business action for logging
+    const actionData = determineBusinessAction(score, sentiment);
     
-    actionResult.style.display = 'block';
-    actionResult.style.backgroundColor = decision.uiColor;
-    actionResult.style.color = '#ffffff';
-    actionResult.style.padding = '20px';
-    actionResult.style.borderRadius = '8px';
-    actionResult.style.marginTop = '20px';
-    actionResult.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
-    
-    actionResult.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="font-size: 24px;">${getActionEmoji(decision.actionCode)}</div>
-            <div>
-                <h3 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 600;">System Decision</h3>
-                <p style="margin: 0; font-size: 16px;">${decision.uiMessage}</p>
-            </div>
-        </div>
-        <div style="margin-top: 15px; text-align: center;">
-            <a href="${decision.buttonLink}" 
-               onclick="event.preventDefault(); alert('Demo action triggered: ${decision.actionCode}');"
-               style="display: inline-block; padding: 10px 20px; background: white; 
-                      color: ${decision.uiColor}; text-decoration: none; 
-                      border-radius: 5px; font-weight: bold; border: 2px solid white;
-                      cursor: pointer; transition: all 0.2s;">
-                ${decision.buttonText}
-            </a>
-        </div>
-    `;
-}
-
-function getActionEmoji(actionCode) {
-    switch(actionCode) {
-        case 'OFFER_COUPON':
-            return '🚨';
-        case 'REQUEST_FEEDBACK':
-            return '📝';
-        case 'ASK_REFERRAL':
-            return '⭐';
-        default:
-            return '🤖';
-    }
+    return { 
+        sentiment, 
+        confidence: score,
+        actionCode: actionData.actionCode,
+        normalizedScore: actionData.normalizedScore
+    };
 }
 
 // ============================================
-// GOOGLE SHEETS LOGGING
+// Log sentiment analysis to Google Sheets
 // ============================================
-async function logToGoogleSheet(review, sentimentData, decision) {
+async function logToGoogleSheets(review, sentimentData) {
     try {
-        const logData = {
+        // Prepare metadata
+        const metadata = {
+            sessionId: sessionId,
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            model: "distilbert-base-uncased-finetuned-sst-2-english",
+            reviewLength: review.length,
+            timestampClient: new Date().toISOString()
+        };
+        
+        // Prepare payload with new action_taken field
+        const payload = {
+            timestamp: new Date().toISOString(),
             review: review,
-            sentiment: sentimentData.label,
-            confidence: sentimentData.score,
-            action_taken: decision.actionCode,
-            meta: {
-                normalized_score: sentimentData.label === 'POSITIVE' 
-                    ? sentimentData.score 
-                    : 1 - sentimentData.score,
-                timestamp: new Date().toISOString()
-            }
+            sentiment: sentimentData.sentiment,
+            confidence: sentimentData.confidence,
+            normalized_score: sentimentData.normalizedScore,
+            action_taken: sentimentData.actionCode,
+            meta: metadata
         };
 
-        console.log('📝 Logging to Google Sheets:', logData);
-        
+        // Send to Google Apps Script
         const response = await fetch(GAS_LOGGING_ENDPOINT, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(logData)
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
-            console.warn('⚠️ Failed to log to Google Sheets:', response.statusText);
-        } else {
-            console.log('✅ Successfully logged to Google Sheets:', decision.actionCode);
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+
+        const result = await response.json();
+        console.log("✅ Logged to Google Sheets:", result);
+
     } catch (error) {
-        console.warn('⚠️ Error logging to Google Sheets (non-critical):', error.message);
+        // Don't break UI if logging fails - just log to console
+        console.warn("⚠️ Failed to log to Google Sheets:", error);
     }
 }
 
 // ============================================
-// ERROR HANDLING
+// Call local transformers.js pipeline for sentiment classification
+// ============================================
+async function analyzeSentiment(text) {
+    if (!sentimentPipeline) {
+        throw new Error("Sentiment model is not initialized.");
+    }
+    
+    // transformers.js text-classification pipeline returns:
+    // [{ label: 'POSITIVE', score: 0.99 }, ...]
+    const output = await sentimentPipeline(text);
+
+    if (!Array.isArray(output) || output.length === 0) {
+        throw new Error("Invalid sentiment output from local model.");
+    }
+
+    // Wrap to match [[{ label, score }]] shape expected by displaySentiment
+    return [output];
+}
+
+// ============================================
+// Display sentiment result
+// ============================================
+function displaySentiment(result) {
+    // Default to neutral if we can't parse the result
+    let sentiment = "neutral";
+    let score = 0.5;
+    let label = "NEUTRAL";
+    
+    // Expected format: [[{label: 'POSITIVE', score: 0.99}]]
+    if (
+        Array.isArray(result) &&
+        result.length > 0 &&
+        Array.isArray(result[0]) &&
+        result[0].length > 0
+    ) {
+        const sentimentData = result[0][0];
+        if (sentimentData && typeof sentimentData === "object") {
+            label =
+                typeof sentimentData.label === "string"
+                    ? sentimentData.label.toUpperCase()
+                    : "NEUTRAL";
+            score =
+                typeof sentimentData.score === "number"
+                    ? sentimentData.score
+                    : 0.5;
+
+            // Determine sentiment bucket
+            if (label === "POSITIVE" && score > 0.5) {
+                sentiment = "positive";
+            } else if (label === "NEGATIVE" && score > 0.5) {
+                sentiment = "negative";
+            } else {
+                sentiment = "neutral";
+            }
+        }
+    }
+
+    // Update sentiment display
+    sentimentResult.classList.add(sentiment);
+    sentimentResult.innerHTML = `<i class="fas ${getSentimentIcon(sentiment)} icon"></i> <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>`;
+    
+    // Determine and display business action
+    const actionData = determineBusinessAction(score, label);
+    displayBusinessAction(actionData);
+}
+
+// ============================================
+// Display business action UI
+// ============================================
+function displayBusinessAction(actionData) {
+    const actionResult = document.getElementById("action-result");
+    const actionIcon = actionResult.querySelector(".action-icon");
+    const actionMessage = document.getElementById("action-message");
+    const actionButton = document.getElementById("action-button");
+    
+    // Set content
+    actionIcon.textContent = actionData.icon;
+    actionMessage.textContent = actionData.uiMessage;
+    actionButton.textContent = actionData.buttonText;
+    
+    // Set styles
+    actionResult.style.backgroundColor = actionData.color + "15"; // Add transparency
+    actionResult.style.borderColor = actionData.color;
+    actionButton.style.backgroundColor = actionData.color;
+    actionButton.style.color = "#FFFFFF";
+    
+    // Add click handler
+    actionButton.onclick = function() {
+        if (actionData.buttonLink.startsWith("#")) {
+            alert(`Action triggered: ${actionData.actionCode}\nLink: ${actionData.buttonLink}`);
+        } else {
+            window.open(actionData.buttonLink, "_blank");
+        }
+    };
+    
+    // Show the action section
+    actionResult.style.display = "block";
+}
+
+// ============================================
+// Get appropriate icon for sentiment bucket
+// ============================================
+function getSentimentIcon(sentiment) {
+    switch (sentiment) {
+        case "positive":
+            return "fa-thumbs-up";
+        case "negative":
+            return "fa-thumbs-down";
+        default:
+            return "fa-question-circle";
+    }
+}
+
+// ============================================
+// Show error message
 // ============================================
 function showError(message) {
-    if (errorElement) {
-        errorElement.textContent = message;
-        errorElement.style.display = 'block';
-    } else {
-        console.error('UI Error:', message);
-    }
+    errorElement.textContent = message;
+    errorElement.style.display = "block";
 }
 
+// ============================================
+// Hide error message
+// ============================================
 function hideError() {
-    if (errorElement) {
-        errorElement.style.display = 'none';
-    }
+    errorElement.style.display = "none";
 }
