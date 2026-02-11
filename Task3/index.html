@@ -39,40 +39,31 @@
 
         .subtitle {
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-size: 16px;
         }
 
-        .api-setup {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-        }
-
-        .api-setup h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .api-setup p {
-            color: #666;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-
-        #api-token {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
+        .model-status {
+            padding: 10px;
             border-radius: 8px;
+            margin-bottom: 20px;
             font-size: 14px;
-            margin-bottom: 10px;
+            font-weight: bold;
         }
 
-        #api-token:focus {
-            outline: none;
-            border-color: #667eea;
+        .model-status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .model-status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .model-status.error {
+            background: #f8d7da;
+            color: #721c24;
         }
 
         .analyze-section {
@@ -90,6 +81,7 @@
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
             font-weight: bold;
+            width: 100%;
         }
 
         #analyze-btn:hover {
@@ -110,6 +102,7 @@
             min-height: 80px;
             font-style: italic;
             color: #555;
+            line-height: 1.6;
         }
 
         .sentiment-result {
@@ -197,38 +190,16 @@
         .footer a:hover {
             text-decoration: underline;
         }
-
-        .how-to {
-            background: #e3f2fd;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-
-        .how-to h4 {
-            color: #1976d2;
-            margin-bottom: 10px;
-        }
-
-        .how-to ol {
-            margin-left: 20px;
-            color: #333;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🤖 Review Sentiment Analyzer</h1>
-        <p class="subtitle">Analyze the sentiment of product reviews using Hugging Face's AI model</p>
+        <p class="subtitle">Local AI-powered sentiment analysis with business decision logic</p>
 
-        <div class="api-setup">
-            <h3>🔑 Hugging Face API Setup</h3>
-            <p>Enter your Hugging Face API Token:</p>
-            <input type="password" id="api-token" placeholder="Enter your Hugging Face API token here">
-            <p style="font-size: 12px; color: #999;">
-                Your token is stored only in your browser and is never sent to our servers.
-            </p>
+        <!-- Model Status -->
+        <div id="model-status" class="model-status loading">
+            ⏳ Loading sentiment model...
         </div>
 
         <div class="analyze-section">
@@ -250,33 +221,20 @@
             Sentiment will appear here
         </div>
 
-        <!-- NEW: Business Action Result -->
+        <!-- Business Action Result -->
         <div id="action-result">
             <!-- Action will be displayed here dynamically -->
         </div>
 
-        <div class="how-to">
-            <h4>📝 How to get a Hugging Face API Token:</h4>
-            <ol>
-                <li>Go to <a href="https://huggingface.co/" target="_blank">huggingface.co</a> and create a free account</li>
-                <li>Navigate to your profile settings and access tokens section</li>
-                <li>Generate a new token with read permissions</li>
-                <li>Copy the token and paste it in the field above</li>
-            </ol>
-            <p style="margin-top: 10px;">
-                This app uses the <strong>siebert/sentiment-roberta-large-english</strong> model from Hugging Face
-            </p>
-        </div>
-
         <div class="footer">
-            <p>🚀 Powered by AI | Business Logic v2.0</p>
+            <p>🚀 Powered by Hugging Face Transformers.js | Business Logic v2.0</p>
         </div>
     </div>
 
     <!-- Papa Parse for TSV parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     
-    <!-- Main app script -->
-    <script src="app.js"></script>
+    <!-- Main app script (ES module) -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
