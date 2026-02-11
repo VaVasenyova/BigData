@@ -179,7 +179,7 @@ async function analyzeSentiment(text) {
     }
 
     const response = await fetch(
-        'https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english',
+        'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6/dist/transformers.min.js',
         {
             headers: {
                 Authorization: `Bearer ${apiToken}`,
