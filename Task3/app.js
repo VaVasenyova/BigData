@@ -294,7 +294,7 @@ function getActionEmoji(actionCode) {
 async function logToGoogleSheet(review, sentimentData, decision) {
     try {
         // ЗАМЕНИТЕ НА ВАШ РЕАЛЬНЫЙ URL ВЕБ-ПРИЛОЖЕНИЯ!
-        const scriptUrl = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbwutXlICXZ4hKF9zU0BOpUZWz_zleOt0v19wYI3HoHju6ril9MIrZkVUcIrNZ8vsj7kzA/exec';
         
         if (scriptUrl.includes('YOUR_GOOGLE')) {
             console.warn('⚠️ Google Sheets logging disabled: replace scriptUrl with your actual Web App URL');
