@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Review Sentiment Analyzer - AI Business Brain</title>
+    <title>Review Sentiment Analyzer</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
@@ -14,79 +14,92 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
         }
 
         .container {
+            max-width: 800px;
+            margin: 0 auto;
             background: white;
             border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 40px;
-            max-width: 800px;
-            width: 100%;
         }
 
         h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2.5em;
         }
 
         .subtitle {
-            color: #666;
-            margin-bottom: 20px;
-            font-size: 16px;
-        }
-
-        .model-status {
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        .model-status.loading {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .model-status.ready {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .model-status.error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .analyze-section {
             text-align: center;
+            color: #666;
             margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .api-setup {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+
+        .api-setup h2 {
+            margin-bottom: 10px;
+            color: #667eea;
+            font-size: 1.3em;
+        }
+
+        .api-setup p {
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .api-token-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        #api-token {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        #api-token:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
         #analyze-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 16px;
+            padding: 12px 24px;
             border-radius: 8px;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            font-size: 16px;
             font-weight: bold;
-            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         #analyze-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
 
         #analyze-btn:disabled {
@@ -94,147 +107,264 @@
             cursor: not-allowed;
         }
 
-        .review-display {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            min-height: 80px;
-            font-style: italic;
-            color: #555;
-            line-height: 1.6;
-        }
-
-        .sentiment-result {
-            text-align: center;
-            padding: 25px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: bold;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-            transition: all 0.3s ease;
-        }
-
-        .sentiment-result.positive {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .sentiment-result.negative {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .sentiment-result.neutral {
-            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-            color: white;
-        }
-
-        .icon {
-            font-size: 32px;
-        }
-
-        #action-result {
-            display: none;
-            transition: all 0.3s ease;
-        }
-
         .loading {
-            text-align: center;
-            padding: 20px;
             display: none;
-        }
-
-        .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        #error-message {
-            background: #fee2e2;
-            color: #b91c1c;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
             text-align: center;
-            color: #666;
+            margin: 20px 0;
+            color: #667eea;
             font-size: 14px;
         }
 
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
         }
 
-        .footer a:hover {
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .review-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+
+        .review-section h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        #review-text {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            min-height: 60px;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-top: 10px;
+            word-wrap: break-word;
+        }
+
+        .sentiment-section {
+            margin-top: 20px;
+        }
+
+        .sentiment-section h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .sentiment-result {
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+
+        .sentiment-result i {
+            font-size: 24px;
+        }
+
+        .sentiment-result.positive {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .sentiment-result.negative {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .sentiment-result.neutral {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        /* Business Action Section */
+        .action-result {
+            display: none;
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .action-result h4 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .action-message {
+            font-size: 15px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #error-message {
+            display: none;
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #f5c6cb;
+            font-size: 14px;
+        }
+
+        .how-to {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e7f3ff;
+            border-radius: 10px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .how-to h2 {
+            color: #2196F3;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .how-to ol {
+            padding-left: 20px;
+            color: #333;
+        }
+
+        .how-to li {
+            margin-bottom: 8px;
+        }
+
+        .how-to a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .how-to a:hover {
             text-decoration: underline;
+        }
+
+        .model-info {
+            margin-top: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .api-token-input {
+                flex-direction: column;
+            }
+
+            #api-token {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🤖 Review Sentiment Analyzer</h1>
-        <p class="subtitle">Local AI-powered sentiment analysis with business decision logic</p>
+        <h1>Review Sentiment Analyzer</h1>
+        <p class="subtitle">Analyze the sentiment of product reviews using AI</p>
 
-        <!-- Model Status -->
-        <div id="model-status" class="model-status loading">
-            ⏳ Loading sentiment model...
+        <div class="api-setup">
+            <h2><i class="fas fa-cog"></i> Hugging Face API Setup</h2>
+            <p>Enter your Hugging Face API Token:</p>
+            <div class="api-token-input">
+                <input type="password" id="api-token" placeholder="Enter your token here...">
+            </div>
+            <p style="font-size: 12px; color: #888; margin-top: 8px;">
+                <i class="fas fa-lock"></i> Your token is stored only in your browser and is never sent to our servers.
+            </p>
         </div>
 
-        <div class="analyze-section">
-            <button id="analyze-btn">🎯 Analyze Random Review</button>
+        <button id="analyze-btn">
+            <i class="fas fa-magic"></i> Analyze Random Review
+        </button>
+
+        <div class="loading" id="loading">
+            <i class="fas fa-spinner"></i> Analyzing sentiment...
         </div>
 
         <div id="error-message"></div>
 
-        <div class="loading" id="loading">
-            <div class="loading-spinner"></div>
-            <p>Analyzing sentiment...</p>
+        <div class="review-section">
+            <h3><i class="fas fa-quote-left"></i> Selected Review:</h3>
+            <div id="review-text">Click the button above to analyze a random review</div>
         </div>
 
-        <div class="review-display" id="review-text">
-            Click the button above to analyze a random review
+        <div class="sentiment-section">
+            <h3><i class="fas fa-chart-line"></i> Sentiment Analysis:</h3>
+            <div class="sentiment-result" id="sentiment-result">
+                Sentiment will appear here
+            </div>
         </div>
 
-        <div class="sentiment-result" id="sentiment-result">
-            Sentiment will appear here
+        <!-- Business Action Result Section -->
+        <div id="action-result" class="action-result">
+            <h4 id="action-title"></h4>
+            <div class="action-icon" style="font-size: 28px; margin-bottom: 10px;"></div>
+            <div class="action-message" id="action-message"></div>
+            <button id="action-button" class="action-btn"></button>
         </div>
 
-        <!-- Business Action Result -->
-        <div id="action-result">
-            <!-- Action will be displayed here dynamically -->
+        <div class="how-to">
+            <h2><i class="fas fa-question-circle"></i> How to get a Hugging Face API Token:</h2>
+            <ol>
+                <li>Go to <a href="https://huggingface.co/" target="_blank">huggingface.co</a> and create a free account</li>
+                <li>Navigate to your profile settings and access tokens section</li>
+                <li>Generate a new token with read permissions</li>
+                <li>Copy the token and paste it in the field above</li>
+            </ol>
         </div>
 
-        <div class="footer">
-            <p>🚀 Powered by Hugging Face Transformers.js | Business Logic v2.0</p>
+        <div class="model-info">
+            This app uses the <strong>distilbert-base-uncased-finetuned-sst-2-english</strong> model from Hugging Face
         </div>
     </div>
 
-    <!-- Papa Parse for TSV parsing -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    
-    <!-- Main app script (ES module) -->
     <script type="module" src="app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 </body>
 </html>
