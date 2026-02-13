@@ -1,356 +1,378 @@
-// ============================================
-// CONFIGURATION
-// ============================================
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbydsl44mz2f-go78SmYOVBGx9EPMub285Xo1EHRZoW-HdUQ-ary4FBgxOIRmPyhhZf48g/exec';
-const DATA_FILE = 'reviews_test.tsv';
-
-// FORCE MOCK MODE - Hugging Face API doesn't allow direct browser requests from GitHub Pages
-const USE_MOCK_API = true;
-
-// Mock sentiment responses
-const MOCK_SENTIMENTS = [
-    { label: 'POSITIVE', score: 0.95 },
-    { label: 'NEGATIVE', score: 0.92 },
-    { label: 'NEUTRAL', score: 0.65 },
-    { label: 'POSITIVE', score: 0.88 },
-    { label: 'NEGATIVE', score: 0.76 },
-    { label: 'POSITIVE', score: 0.91 },
-    { label: 'NEGATIVE', score: 0.85 },
-    { label: 'NEUTRAL', score: 0.58 }
-];
-
-// ============================================
-// STATE MANAGEMENT
-// ============================================
+// Global variables
 let reviews = [];
-let startTime = null;
+let apiToken = '';
 
-// ============================================
-// INITIALIZATION
-// ============================================
-document.addEventListener('DOMContentLoaded', async () => {
-    // Show mock mode warning
-    document.getElementById('env-warning').style.display = 'block';
-    document.querySelector('.section-title').innerHTML += ' <span class="mock-mode-badge">MOCK MODE</span>';
+// DOM elements
+const analyzeBtn = document.getElementById('analyze-btn');
+const reviewText = document.getElementById('review-text');
+const sentimentResult = document.getElementById('sentiment-result');
+const loadingElement = document.querySelector('.loading');
+const errorElement = document.getElementById('error-message');
+const apiTokenInput = document.getElementById('api-token');
 
-    // Load reviews
-    await loadReviews();
+// Initialize the app
+document.addEventListener('DOMContentLoaded', function () {
+    // Load the TSV file (Papa Parse 활성화)
+    loadReviews();
 
-    // Setup event listeners
-    document.getElementById('analyze-btn').addEventListener('click', analyzeRandomReview);
+    // Set up event listeners
+    analyzeBtn.addEventListener('click', analyzeRandomReview);
+    apiTokenInput.addEventListener('change', saveApiToken);
+
+    // Load saved API token if exists
+    const savedToken = localStorage.getItem('hfApiToken');
+    if (savedToken) {
+        apiTokenInput.value = savedToken;
+        apiToken = savedToken;
+    }
 });
 
-// ============================================
-// DATA LOADING
-// ============================================
-async function loadReviews() {
-    try {
-        console.log('Loading reviews from:', DATA_FILE);
-        const response = await fetch(DATA_FILE);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+// Load and parse the TSV file using Papa Parse
+function loadReviews() {
+    fetch('reviews_test.tsv')
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load TSV file');
+            return response.text();
+        })
+        .then(tsvData => {
+            Papa.parse(tsvData, {
+                header: true,
+                delimiter: '\t',
+                complete: (results) => {
+                    reviews = results.data
+                        .map(row => row.text)
+                        .filter(text => text && text.trim() !== '');
+                    console.log('Loaded', reviews.length, 'reviews');
+                },
+                error: (error) => {
+                    console.error('TSV parse error:', error);
+                    showError('Failed to parse TSV file: ' + error.message);
+                }
+            });
+        })
+        .catch(error => {
+            console.error('TSV load error:', error);
+            showError('Failed to load TSV file: ' + error.message);
+        });
+}
 
-        const tsvText = await response.text();
-        reviews = parseTSV(tsvText);
-        
-        if (reviews.length === 0) {
-            throw new Error('No valid reviews found');
-        }
-
-        console.log(`✓ Loaded ${reviews.length} reviews`);
-        return true;
-    } catch (error) {
-        console.error('Failed to load reviews:', error);
-        showError(
-            'Failed to load reviews',
-            [
-                `Error: ${error.message}`,
-                'Make sure reviews_test.tsv exists in the same folder',
-                'Check browser console (F12) for details'
-            ]
-        );
-        return false;
+// Save API token to localStorage
+function saveApiToken() {
+    apiToken = apiTokenInput.value.trim();
+    if (apiToken) {
+        localStorage.setItem('hfApiToken', apiToken);
+    } else {
+        localStorage.removeItem('hfApiToken');
     }
 }
 
-function parseTSV(text) {
-    return text
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !line.startsWith('#') && line.length > 5);
-}
+// Analyze a random review
+function analyzeRandomReview() {
+    hideError();
 
-// ============================================
-// ANALYSIS FUNCTION
-// ============================================
-async function analyzeRandomReview() {
     if (reviews.length === 0) {
-        const success = await loadReviews();
-        if (!success) return;
+        showError('No reviews available. Please try again later.');
+        return;
     }
 
-    // UI State: Loading
-    document.getElementById('analyze-btn').disabled = true;
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('error-message').classList.remove('show');
-    document.getElementById('action-badge').classList.remove('show');
-    document.getElementById('dynamic-message').classList.remove('show');
-    document.getElementById('action-details').classList.remove('show');
+    const selectedReview = reviews[Math.floor(Math.random() * reviews.length)];
 
-    try {
-        // Select random review
-        const randomIndex = Math.floor(Math.random() * reviews.length);
-        const reviewText = reviews[randomIndex];
-        document.getElementById('review-text').textContent = `"${reviewText}"`;
+    // Display the review
+    reviewText.textContent = selectedReview;
 
-        console.log(`Analyzing review #${randomIndex + 1}: "${reviewText.substring(0, 50)}..."`);
+    // Show loading state
+    loadingElement.style.display = 'block';
+    analyzeBtn.disabled = true;
+    sentimentResult.innerHTML = '';  // Reset previous result
+    sentimentResult.className = 'sentiment-result';  // Reset classes
 
-        // Start timer
-        startTime = Date.now();
+    // Call Hugging Face API
+    analyzeSentiment(selectedReview)
+        .then(result => displaySentiment(result))
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Failed to analyze sentiment: ' + error.message);
+        })
+        .finally(() => {
+            loadingElement.style.display = 'none';
+            analyzeBtn.disabled = false;
+        });
+}
 
-        // Get mock sentiment (simulated API call)
-        const sentimentResult = await getMockSentiment();
-
-        // Determine business action
-        const actionData = determineBusinessAction(sentimentResult);
-
-        // Display results
-        displaySentiment(sentimentResult);
-        displayBusinessAction(actionData);
-
-        // Log to Google Sheets
-        if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_WEB_APP_URL_HERE') {
-            await logToGoogleSheets(reviewText, sentimentResult, actionData);
-        } else {
-            console.warn('Google Sheets logging skipped: URL not configured');
+// Call Hugging Face API for sentiment analysis
+async function analyzeSentiment(text) {
+    const response = await fetch(
+        'https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english',
+        {
+            headers: {
+                Authorization: apiToken ? `Bearer ${apiToken}` : undefined,
+                'Content-Type': 'application/json'
+            },
+            method: 'POST',
+            body: JSON.stringify({ inputs: text }),
         }
+    );
 
-        console.log('✓ Analysis complete:', actionData.action);
-
-    } catch (error) {
-        console.error('Analysis error:', error);
-        showError(
-            'Analysis failed',
-            [
-                `Error: ${error.message || 'Unknown error'}`,
-                '💡 Running in mock mode (simulated AI responses)',
-                '💡 Check browser console (F12) for technical details'
-            ]
-        );
-    } finally {
-        document.getElementById('analyze-btn').disabled = false;
-        document.getElementById('loading').style.display = 'none';
+    if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
+
+    const result = await response.json();
+    return result;
 }
 
-// ============================================
-// MOCK API (Simulates Hugging Face)
-// ============================================
-function getMockSentiment() {
-    return new Promise(resolve => {
-        // Simulate network delay (800ms)
-        setTimeout(() => {
-            const randomIndex = Math.floor(Math.random() * MOCK_SENTIMENTS.length);
-            resolve(MOCK_SENTIMENTS[randomIndex]);
-        }, 800);
-    });
-}
 
-// ============================================
-// BUSINESS LOGIC: SENTIMENT → ACTION
-// ============================================
-function determineBusinessAction(sentiment) {
-    const { label, score } = sentiment;
+/**
+ * Determines the appropriate business action based on sentiment analysis results.
+ * 
+ * Normalizes the AI output into a linear scale (0.0 to 1.0) to simplify
+ * threshold comparisons.
+ * 
+ * @param {number} confidence - The confidence score returned by the API (0.0 to 1.0).
+ * @param {string} label - The label returned by the API (e.g., "POSITIVE", "NEGATIVE").
+ * @returns {object} An object containing the action metadata (code, message, color, icon).
+ */
+function determineBusinessAction(confidence, label) {
+    // 1. Normalize Score: Map everything to a 0 (Worst) to 1 (Best) scale.
+    // If Label is NEGATIVE, a high confidence means a VERY BAD score (near 0).
+    let normalizedScore = 0.5; // Default neutral
 
-    // Decision Matrix
-    if (label === 'NEGATIVE' && score > 0.7) {
+    if (label === "POSITIVE") {
+        normalizedScore = confidence; // e.g., 0.9 -> 0.9 (Great)
+    } else if (label === "NEGATIVE") {
+        normalizedScore = 1.0 - confidence; // e.g., 0.9 conf -> 0.1 (Terrible)
+    }
+
+    // 2. Apply Business Thresholds
+    if (normalizedScore <= 0.4) {
+        // CASE: Critical Churn Risk
         return {
-            action: 'OFFER_COUPON',
-            message: 'We sincerely apologize for your experience. As a gesture of goodwill, here\'s a 20% discount on your next purchase.',
-            icon: 'fa-gift',
-            tone: 'negative',
-            trigger: 'High-confidence negative review',
-            recommendation: 'Offer coupon to retain customer and rebuild trust',
-            score: score
+            actionCode: "OFFER_COUPON",
+            uiMessage: "We are truly sorry. Please accept this 50% discount coupon.",
+            uiColor: "#ef4444", // Red
+            uiIcon: "fa-gift",
+            uiButtonText: "🎁 Apply 50% Coupon",
+            uiSecondaryButton: "📞 Contact Support"
         };
-    } else if (label === 'NEGATIVE' && score <= 0.7) {
+    } else if (normalizedScore < 0.7) {
+        // CASE: Ambiguous / Neutral
         return {
-            action: 'FLAG_FOR_REVIEW',
-            message: 'We\'re sorry to hear about your experience. Our customer success team will reach out to you shortly to address your concerns.',
-            icon: 'fa-flag',
-            tone: 'negative',
-            trigger: 'Low-confidence negative review',
-            recommendation: 'Manual review needed for ambiguous feedback',
-            score: score
-        };
-    } else if (label === 'POSITIVE' && score > 0.7) {
-        return {
-            action: 'THANK_CUSTOMER',
-            message: 'Thank you for your wonderful feedback! We\'re thrilled you love our product. Check out our premium collection for exclusive offers.',
-            icon: 'fa-star',
-            tone: 'positive',
-            trigger: 'High-confidence positive review',
-            recommendation: 'Thank customer and suggest upsell opportunity',
-            score: score
-        };
-    } else if (label === 'POSITIVE' && score <= 0.7) {
-        return {
-            action: 'NO_ACTION',
-            message: 'Thank you for your feedback! We appreciate you taking the time to share your thoughts.',
-            icon: 'fa-check-circle',
-            tone: 'positive',
-            trigger: 'Low-confidence positive review',
-            recommendation: 'Acknowledge feedback, no special action required',
-            score: score
-        };
-    } else if (label === 'NEUTRAL') {
-        return {
-            action: 'NO_ACTION',
-            message: 'We appreciate your input! Your feedback helps us improve our products and services.',
-            icon: 'fa-info-circle',
-            tone: 'neutral',
-            trigger: 'Neutral sentiment',
-            recommendation: 'No intervention needed',
-            score: score
+            actionCode: "REQUEST_FEEDBACK",
+            uiMessage: "Thank you! Could you tell us how we can improve?",
+            uiColor: "#6b7280", // Gray
+            uiIcon: "fa-comment-dots",
+            uiButtonText: "📝 Take Survey",
+            uiSecondaryButton: null
         };
     } else {
+        // CASE: Happy Customer
         return {
-            action: 'NO_ACTION',
-            message: 'Thank you for your feedback!',
-            icon: 'fa-comment',
-            tone: 'info',
-            trigger: 'Unknown sentiment',
-            recommendation: 'Default acknowledgment',
-            score: score
+            actionCode: "ASK_REFERRAL",
+            uiMessage: "Glad you liked it! Refer a friend and earn rewards.",
+            uiColor: "#3b82f6", // Blue
+            uiIcon: "fa-user-friends",
+            uiButtonText: "⭐ Refer a Friend",
+            uiSecondaryButton: "⭐ Leave a Review"
         };
     }
 }
 
-// ============================================
-// UI DISPLAY FUNCTIONS
-// ============================================
+// Display sentiment result
 function displaySentiment(result) {
-    const { label, score } = result;
-    const sentimentDiv = document.getElementById('sentiment-result');
-    const confidencePercent = (score * 100).toFixed(1);
+    // Default to neutral if we can't parse the result
+    let sentiment = 'neutral';
+    let score = 0.5;
+    let label = 'NEUTRAL';
 
-    let sentimentClass = 'neutral';
-    let sentimentIcon = 'fa-question-circle';
-    let sentimentColor = '#ffc107';
+    // Parse the API response (format: [[{label: 'POSITIVE', score: 0.99}]])
+    if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0]) && result[0].length > 0) {
+        const sentimentData = result[0][0];
+        label = sentimentData.label?.toUpperCase() || 'NEUTRAL';
+        score = sentimentData.score ?? 0.5;
 
-    if (label === 'POSITIVE') {
-        sentimentClass = 'positive';
-        sentimentIcon = 'fa-thumbs-up';
-        sentimentColor = '#28a745';
-    } else if (label === 'NEGATIVE') {
-        sentimentClass = 'negative';
-        sentimentIcon = 'fa-thumbs-down';
-        sentimentColor = '#dc3545';
+        // Determine sentiment
+        if (label === 'POSITIVE' && score > 0.5) {
+            sentiment = 'positive';
+        } else if (label === 'NEGATIVE' && score > 0.5) {
+            sentiment = 'negative';
+        }
     }
 
-    sentimentDiv.innerHTML = `
-        <div class="sentiment-icon">
-            <i class="fas ${sentimentIcon}" style="color: ${sentimentColor};"></i>
-        </div>
-        <div class="sentiment-label">
-            ${label} <span style="font-size:0.7em; color:#aaa;">(simulated)</span>
-        </div>
-        <div class="sentiment-confidence">
-            ${confidencePercent}% confidence
-        </div>
+    // Update UI
+    sentimentResult.classList.add(sentiment);
+    sentimentResult.innerHTML = `
+        <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
+        <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
     `;
-
-    sentimentDiv.className = `sentiment ${sentimentClass}`;
 }
 
-function displayBusinessAction(actionData) {
-    const { action, message, icon, tone, trigger, recommendation, score } = actionData;
-
-    // Action Badge
-    const badge = document.getElementById('action-badge');
-    badge.innerHTML = `
-        <i class="fas ${icon}"></i>
-        <span class="action-type">${action.replace('_', ' ')}</span>
-        <span style="font-size:0.8em; opacity:0.8; margin-left:8px;">(simulated decision)</span>
-    `;
-    badge.classList.add('show');
-
-    // Dynamic Message
-    const messageDiv = document.getElementById('dynamic-message');
-    messageDiv.innerHTML = `<p>${message}</p>`;
-    messageDiv.className = `dynamic-message ${tone} show`;
-
-    // Action Details
-    document.getElementById('detail-sentiment').textContent = action;
-    document.getElementById('detail-confidence').textContent = `${(score * 100).toFixed(1)}%`;
-    document.getElementById('detail-trigger').textContent = trigger;
-    document.getElementById('detail-recommendation').textContent = recommendation;
-    document.getElementById('action-details').classList.add('show');
-}
-
-function showError(title, details = []) {
-    document.getElementById('error-text').innerHTML = `<strong>${title}</strong>`;
-    
-    const detailsList = document.getElementById('error-details');
-    detailsList.innerHTML = '';
-    
-    if (Array.isArray(details)) {
-        details.forEach(detail => {
-            const li = document.createElement('li');
-            li.innerHTML = detail;
-            detailsList.appendChild(li);
-        });
+// Get appropriate icon for sentiment
+function getSentimentIcon(sentiment) {
+    switch (sentiment) {
+        case 'positive':
+            return 'fa-thumbs-up';
+        case 'negative':
+            return 'fa-thumbs-down';
+        default:
+            return 'fa-question-circle';
     }
-    
-    document.getElementById('error-message').classList.add('show');
+}
+
+// Display business action in UI
+function displayBusinessAction(decision, label, score) {
+    actionResult.style.display = 'block';
+
+    // Set appropriate class based on action
+    actionResult.className = 'action-result';
+    if (decision.actionCode === 'OFFER_COUPON') {
+        actionResult.classList.add('action-offer-coupon');
+    } else if (decision.actionCode === 'REQUEST_FEEDBACK') {
+        actionResult.classList.add('action-request-feedback');
+    } else if (decision.actionCode === 'ASK_REFERRAL') {
+        actionResult.classList.add('action-ask-referral');
+    }
+
+    // Build button HTML
+    let buttonsHTML = '';
+    if (decision.actionCode === 'OFFER_COUPON') {
+        buttonsHTML = `
+            <button class="btn-primary" onclick="applyCoupon()">🎁 Apply 50% Coupon</button>
+            <button class="btn-secondary" onclick="contactSupport()">📞 Contact Support</button>
+        `;
+    } else if (decision.actionCode === 'REQUEST_FEEDBACK') {
+        buttonsHTML = `
+            <button class="btn-primary" onclick="openSurvey()">📝 Take Survey</button>
+        `;
+    } else if (decision.actionCode === 'ASK_REFERRAL') {
+        buttonsHTML = `
+            <button class="btn-primary" onclick="shareReferral()">⭐ Refer a Friend</button>
+            <button class="btn-secondary" onclick="leaveReview()">⭐ Leave a Review</button>
+        `;
+    }
+
+    // Render action UI
+    actionResult.innerHTML = `
+        <div class="action-header">
+            <i class="fas ${decision.uiIcon}"></i>
+            <h3>🤖 System Decision: ${decision.actionCode.replace('_', ' ')}</h3>
+        </div>
+        <div class="action-content" style="background-color: ${decision.uiColor}20; border-left-color: ${decision.uiColor};">
+            <p><strong>Action:</strong> ${decision.uiMessage}</p>
+            <p><small>Normalized Score: ${(getNormalizedScore(score, label) * 100).toFixed(1)}%</small></p>
+        </div>
+        <div class="action-buttons">
+            ${buttonsHTML}
+        </div>
+    `;
+}
+
+// Get appropriate icon for sentiment
+function getSentimentIcon(sentiment) {
+    switch (sentiment) {
+        case 'positive':
+            return 'fa-thumbs-up';
+        case 'negative':
+            return 'fa-thumbs-down';
+        default:
+            return 'fa-question-circle';
+    }
+}
+
+// Calculate normalized score for display
+function getNormalizedScore(confidence, label) {
+    if (label === "POSITIVE") {
+        return confidence;
+    } else if (label === "NEGATIVE") {
+        return 1.0 - confidence;
+    }
+    return 0.5;
+}
+
+// Show error message
+function showError(message) {
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+}
+
+// Hide error message
+function hideError() {
+    errorElement.style.display = 'none';
+}
+
+// ============================================
+// BUTTON EVENT HANDLERS
+// ============================================
+
+function applyCoupon() {
+    alert('🎁 Coupon applied! Use code: SAVE50 at checkout.');
+    logUserAction('coupon_applied');
+}
+
+function contactSupport() {
+    window.open('mailto:support@example.com?subject=Customer Support Request', '_blank');
+    logUserAction('contact_support');
+}
+
+function openSurvey() {
+    window.open('https://forms.example.com/feedback', '_blank');
+    logUserAction('survey_opened');
+}
+
+function shareReferral() {
+    const shareText = 'Check out this amazing product! Use my link: https://example.com/referral';
+    navigator.clipboard.writeText(shareText).then(() => {
+        alert('🔗 Referral link copied to clipboard!');
+    });
+    logUserAction('referral_shared');
+}
+
+function leaveReview() {
+    window.open('https://reviews.example.com', '_blank');
+    logUserAction('review_requested');
+}
+
+function logUserAction(actionType) {
+    console.log(`User action: ${actionType}`);
+    // Optional: Send to analytics service
 }
 
 // ============================================
 // GOOGLE SHEETS LOGGING
 // ============================================
-async function logToGoogleSheets(review, sentiment, actionData) {
-    try {
-        const logData = {
-            review: review,
-            sentiment: {
-                label: sentiment.label,
-                score: sentiment.score
-            },
-            meta: {
-                model: 'mock-sentiment-simulator',
-                processingTime: Date.now() - startTime,
-                timestamp: new Date().toISOString(),
-                userAgent: navigator.userAgent,
-                mockMode: true
-            },
-            action_taken: actionData.action
-        };
 
-        console.log('Logging to Google Sheets:', logData);
+async function logToGoogleSheet(review, label, confidence, actionCode) {
+    const logData = {
+        timestamp: new Date().toISOString(),
+        review: review || '',
+        sentiment: label,
+        confidence: confidence,
+        action_taken: actionCode,
+        meta: {
+            model: "siebert/sentiment-roberta-large-english",
+            normalizedScore: getNormalizedScore(confidence, label)
+        }
+    };
+
+    try {
+        if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_')) {
+            console.warn('⚠️ Google Sheets URL not configured. Skipping log.');
+            return;
+        }
 
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(logData)
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        if (response.ok) {
+            console.log('✅ Logged to Google Sheets:', actionCode);
+        } else {
+            console.warn('⚠️ Logging failed:', await response.text());
         }
-
-        const textResponse = await response.text();
-        if (textResponse.trim() !== 'OK') {
-            console.warn('Google Sheets warning:', textResponse);
-        }
-
-        console.log('✓ Successfully logged to Google Sheets');
     } catch (error) {
-        console.error('Google Sheets logging failed:', error);
-        // Non-critical - don't show to user
+        console.error('❌ Logging error:', error);
     }
 }
