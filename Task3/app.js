@@ -121,62 +121,61 @@ async function analyzeSentiment(text) {
     return result;
 }
 
-
-/**
- * Determines the appropriate business action based on sentiment analysis results.
- * 
- * Normalizes the AI output into a linear scale (0.0 to 1.0) to simplify
- * threshold comparisons.
- * 
- * @param {number} confidence - The confidence score returned by the API (0.0 to 1.0).
- * @param {string} label - The label returned by the API (e.g., "POSITIVE", "NEGATIVE").
- * @returns {object} An object containing the action metadata (code, message, color, icon).
- */
-function determineBusinessAction(confidence, label) {
-    // 1. Normalize Score: Map everything to a 0 (Worst) to 1 (Best) scale.
-    // If Label is NEGATIVE, a high confidence means a VERY BAD score (near 0).
-    let normalizedScore = 0.5; // Default neutral
-
-    if (label === "POSITIVE") {
-        normalizedScore = confidence; // e.g., 0.9 -> 0.9 (Great)
-    } else if (label === "NEGATIVE") {
-        normalizedScore = 1.0 - confidence; // e.g., 0.9 conf -> 0.1 (Terrible)
+// Normalize sentiment score to 0.0–1.0 scale
+function normalizeSentiment(label, confidence) {
+    if (label === 'POSITIVE') {
+        return confidence;
+    } else if (label === 'NEGATIVE') {
+        return 1.0 - confidence;
     }
+    return 0.5; // Default neutral
+}
 
-    // 2. Apply Business Thresholds
+// Determine business action based on normalized score
+function determineBusinessAction(normalizedScore) {
     if (normalizedScore <= 0.4) {
-        // CASE: Critical Churn Risk
         return {
-            actionCode: "OFFER_COUPON",
-            uiMessage: "We are truly sorry. Please accept this 50% discount coupon.",
-            uiColor: "#ef4444", // Red
-            uiIcon: "fa-gift",
-            uiButtonText: "🎁 Apply 50% Coupon",
-            uiSecondaryButton: "📞 Contact Support"
+            actionCode: 'OFFER_COUPON',
+            uiMessage: 'We are truly sorry. Please accept this 50% discount coupon.',
+            uiColor: '#ef4444'
         };
     } else if (normalizedScore < 0.7) {
-        // CASE: Ambiguous / Neutral
         return {
-            actionCode: "REQUEST_FEEDBACK",
-            uiMessage: "Thank you! Could you tell us how we can improve?",
-            uiColor: "#6b7280", // Gray
-            uiIcon: "fa-comment-dots",
-            uiButtonText: "📝 Take Survey",
-            uiSecondaryButton: null
+            actionCode: 'REQUEST_FEEDBACK',
+            uiMessage: 'Thank you! Could you tell us how we can improve?',
+            uiColor: '#6b7280'
         };
     } else {
-        // CASE: Happy Customer
         return {
-            actionCode: "ASK_REFERRAL",
-            uiMessage: "Glad you liked it! Refer a friend and earn rewards.",
-            uiColor: "#3b82f6", // Blue
-            uiIcon: "fa-user-friends",
-            uiButtonText: "⭐ Refer a Friend",
-            uiSecondaryButton: "⭐ Leave a Review"
+            actionCode: 'ASK_REFERRAL',
+            uiMessage: 'Glad you liked it! Refer a friend and earn rewards.',
+            uiColor: '#3b82f6'
         };
     }
 }
 
+// Display business action UI
+function displayBusinessAction(action) {
+    const actionResult = document.getElementById('action-result');
+    if (!actionResult) return;
+
+    actionResult.style.display = 'block';
+    actionResult.style.backgroundColor = action.uiColor;
+    actionResult.style.color = '#ffffff';
+    actionResult.innerHTML = `
+        <strong>Action:</strong> ${action.uiMessage}
+        <div class="action-buttons">
+            ${action.actionCode === 'OFFER_COUPON' ?
+            '<button class="coupon-btn">Generate 50% Off Coupon</button>' : ''}
+            ${action.actionCode === 'REQUEST_FEEDBACK' ?
+            '<button class="feedback-btn">Open Survey</button>' : ''}
+            ${action.actionCode === 'ASK_REFERRAL' ?
+            '<button class="referral-btn">Refer a Friend</button>' : ''}
+        </div>
+    `;
+}
+
+// Display sentiment result
 // Display sentiment result
 function displaySentiment(result) {
     // Default to neutral if we can't parse the result
@@ -198,12 +197,19 @@ function displaySentiment(result) {
         }
     }
 
+    // Normalize score and determine business action
+    const normalizedScore = normalizeSentiment(label, score);
+    const businessAction = determineBusinessAction(normalizedScore);
+
     // Update UI
     sentimentResult.classList.add(sentiment);
     sentimentResult.innerHTML = `
         <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
         <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
     `;
+
+    // Display business action
+    displayBusinessAction(businessAction);
 }
 
 // Get appropriate icon for sentiment
@@ -216,76 +222,6 @@ function getSentimentIcon(sentiment) {
         default:
             return 'fa-question-circle';
     }
-}
-
-// Display business action in UI
-function displayBusinessAction(decision, label, score) {
-    actionResult.style.display = 'block';
-
-    // Set appropriate class based on action
-    actionResult.className = 'action-result';
-    if (decision.actionCode === 'OFFER_COUPON') {
-        actionResult.classList.add('action-offer-coupon');
-    } else if (decision.actionCode === 'REQUEST_FEEDBACK') {
-        actionResult.classList.add('action-request-feedback');
-    } else if (decision.actionCode === 'ASK_REFERRAL') {
-        actionResult.classList.add('action-ask-referral');
-    }
-
-    // Build button HTML
-    let buttonsHTML = '';
-    if (decision.actionCode === 'OFFER_COUPON') {
-        buttonsHTML = `
-            <button class="btn-primary" onclick="applyCoupon()">🎁 Apply 50% Coupon</button>
-            <button class="btn-secondary" onclick="contactSupport()">📞 Contact Support</button>
-        `;
-    } else if (decision.actionCode === 'REQUEST_FEEDBACK') {
-        buttonsHTML = `
-            <button class="btn-primary" onclick="openSurvey()">📝 Take Survey</button>
-        `;
-    } else if (decision.actionCode === 'ASK_REFERRAL') {
-        buttonsHTML = `
-            <button class="btn-primary" onclick="shareReferral()">⭐ Refer a Friend</button>
-            <button class="btn-secondary" onclick="leaveReview()">⭐ Leave a Review</button>
-        `;
-    }
-
-    // Render action UI
-    actionResult.innerHTML = `
-        <div class="action-header">
-            <i class="fas ${decision.uiIcon}"></i>
-            <h3>🤖 System Decision: ${decision.actionCode.replace('_', ' ')}</h3>
-        </div>
-        <div class="action-content" style="background-color: ${decision.uiColor}20; border-left-color: ${decision.uiColor};">
-            <p><strong>Action:</strong> ${decision.uiMessage}</p>
-            <p><small>Normalized Score: ${(getNormalizedScore(score, label) * 100).toFixed(1)}%</small></p>
-        </div>
-        <div class="action-buttons">
-            ${buttonsHTML}
-        </div>
-    `;
-}
-
-// Get appropriate icon for sentiment
-function getSentimentIcon(sentiment) {
-    switch (sentiment) {
-        case 'positive':
-            return 'fa-thumbs-up';
-        case 'negative':
-            return 'fa-thumbs-down';
-        default:
-            return 'fa-question-circle';
-    }
-}
-
-// Calculate normalized score for display
-function getNormalizedScore(confidence, label) {
-    if (label === "POSITIVE") {
-        return confidence;
-    } else if (label === "NEGATIVE") {
-        return 1.0 - confidence;
-    }
-    return 0.5;
 }
 
 // Show error message
@@ -297,82 +233,4 @@ function showError(message) {
 // Hide error message
 function hideError() {
     errorElement.style.display = 'none';
-}
-
-// ============================================
-// BUTTON EVENT HANDLERS
-// ============================================
-
-function applyCoupon() {
-    alert('🎁 Coupon applied! Use code: SAVE50 at checkout.');
-    logUserAction('coupon_applied');
-}
-
-function contactSupport() {
-    window.open('mailto:support@example.com?subject=Customer Support Request', '_blank');
-    logUserAction('contact_support');
-}
-
-function openSurvey() {
-    window.open('https://forms.example.com/feedback', '_blank');
-    logUserAction('survey_opened');
-}
-
-function shareReferral() {
-    const shareText = 'Check out this amazing product! Use my link: https://example.com/referral';
-    navigator.clipboard.writeText(shareText).then(() => {
-        alert('🔗 Referral link copied to clipboard!');
-    });
-    logUserAction('referral_shared');
-}
-
-function leaveReview() {
-    window.open('https://reviews.example.com', '_blank');
-    logUserAction('review_requested');
-}
-
-function logUserAction(actionType) {
-    console.log(`User action: ${actionType}`);
-    // Optional: Send to analytics service
-}
-
-// ============================================
-// GOOGLE SHEETS LOGGING
-// ============================================
-
-async function logToGoogleSheet(review, label, confidence, actionCode) {
-    const logData = {
-        timestamp: new Date().toISOString(),
-        review: review || '',
-        sentiment: label,
-        confidence: confidence,
-        action_taken: actionCode,
-        meta: {
-            model: "distilbert-base-uncased-finetuned-sst-2-english",
-            normalizedScore: getNormalizedScore(confidence, label)
-        }
-    };
-
-    try {
-        if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_')) {
-            console.warn('⚠️ Google Sheets URL not configured. Skipping log.');
-            return;
-        }
-
-        const response = await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(logData)
-        });
-
-        if (response.ok) {
-            console.log('✅ Logged to Google Sheets:', actionCode);
-        } else {
-            console.warn('⚠️ Logging failed:', await response.text());
-        }
-    } catch (error) {
-        console.error('❌ Logging error:', error);
-    }
 }
