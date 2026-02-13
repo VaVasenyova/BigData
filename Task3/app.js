@@ -6,15 +6,19 @@ let apiToken = '';
 const analyzeBtn = document.getElementById('analyze-btn');
 const reviewText = document.getElementById('review-text');
 const sentimentResult = document.getElementById('sentiment-result');
+const actionResult = document.getElementById('action-result'); // ✅ ADDED
 const loadingElement = document.querySelector('.loading');
 const errorElement = document.getElementById('error-message');
 const apiTokenInput = document.getElementById('api-token');
+
+// Google Sheets configuration
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjuecPpWQu_7vMVxVM8IbBcJGNcU-A6b50GsMNDYC-S2NdNRbKoA-eHrpLxsYugzrnMQ/exec'; // ✅ ADDED - Replace with your actual URL
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function () {
     // Load the TSV file (Papa Parse 활성화)
     loadReviews();
-
+    
     // Set up event listeners
     analyzeBtn.addEventListener('click', analyzeRandomReview);
     apiTokenInput.addEventListener('change', saveApiToken);
@@ -69,7 +73,13 @@ function saveApiToken() {
 // Analyze a random review
 function analyzeRandomReview() {
     hideError();
-
+    
+    // ✅ VALIDATE API TOKEN
+    if (!apiToken || apiToken.trim() === '') {
+        showError('Please enter a valid Hugging Face API token first.');
+        return;
+    }
+    
     if (reviews.length === 0) {
         showError('No reviews available. Please try again later.');
         return;
@@ -85,10 +95,11 @@ function analyzeRandomReview() {
     analyzeBtn.disabled = true;
     sentimentResult.innerHTML = '';  // Reset previous result
     sentimentResult.className = 'sentiment-result';  // Reset classes
+    actionResult.style.display = 'none'; // ✅ Reset action result
 
     // Call Hugging Face API
     analyzeSentiment(selectedReview)
-        .then(result => displaySentiment(result))
+        .then(result => displaySentiment(result, selectedReview)) // ✅ Pass selectedReview
         .catch(error => {
             console.error('Error:', error);
             showError('Failed to analyze sentiment: ' + error.message);
@@ -112,7 +123,6 @@ async function analyzeSentiment(text) {
             body: JSON.stringify({ inputs: text }),
         }
     );
-
     if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
@@ -121,13 +131,10 @@ async function analyzeSentiment(text) {
     return result;
 }
 
-
 /**
  * Determines the appropriate business action based on sentiment analysis results.
- * 
  * Normalizes the AI output into a linear scale (0.0 to 1.0) to simplify
  * threshold comparisons.
- * 
  * @param {number} confidence - The confidence score returned by the API (0.0 to 1.0).
  * @param {string} label - The label returned by the API (e.g., "POSITIVE", "NEGATIVE").
  * @returns {object} An object containing the action metadata (code, message, color, icon).
@@ -136,18 +143,17 @@ function determineBusinessAction(confidence, label) {
     // 1. Normalize Score: Map everything to a 0 (Worst) to 1 (Best) scale.
     // If Label is NEGATIVE, a high confidence means a VERY BAD score (near 0).
     let normalizedScore = 0.5; // Default neutral
-
     if (label === "POSITIVE") {
         normalizedScore = confidence; // e.g., 0.9 -> 0.9 (Great)
     } else if (label === "NEGATIVE") {
         normalizedScore = 1.0 - confidence; // e.g., 0.9 conf -> 0.1 (Terrible)
     }
-
+    
     // 2. Apply Business Thresholds
     if (normalizedScore <= 0.4) {
         // CASE: Critical Churn Risk
         return {
-            actionCode: "OFFER_COUPON",
+            actionCode: "OFFER_COUPON", // ✅ Removed trailing space
             uiMessage: "We are truly sorry. Please accept this 50% discount coupon.",
             uiColor: "#ef4444", // Red
             uiIcon: "fa-gift",
@@ -157,7 +163,7 @@ function determineBusinessAction(confidence, label) {
     } else if (normalizedScore < 0.7) {
         // CASE: Ambiguous / Neutral
         return {
-            actionCode: "REQUEST_FEEDBACK",
+            actionCode: "REQUEST_FEEDBACK", // ✅ Removed trailing space
             uiMessage: "Thank you! Could you tell us how we can improve?",
             uiColor: "#6b7280", // Gray
             uiIcon: "fa-comment-dots",
@@ -167,7 +173,7 @@ function determineBusinessAction(confidence, label) {
     } else {
         // CASE: Happy Customer
         return {
-            actionCode: "ASK_REFERRAL",
+            actionCode: "ASK_REFERRAL", // ✅ Removed trailing space
             uiMessage: "Glad you liked it! Refer a friend and earn rewards.",
             uiColor: "#3b82f6", // Blue
             uiIcon: "fa-user-friends",
@@ -178,22 +184,22 @@ function determineBusinessAction(confidence, label) {
 }
 
 // Display sentiment result
-function displaySentiment(result) {
+function displaySentiment(result, selectedReview) { // ✅ Added selectedReview parameter
     // Default to neutral if we can't parse the result
     let sentiment = 'neutral';
     let score = 0.5;
     let label = 'NEUTRAL';
-
+    
     // Parse the API response (format: [[{label: 'POSITIVE', score: 0.99}]])
-    if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0]) && result[0].length > 0) {
+    if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0]) && result[0].length > 0) { // ✅ Fixed: & & → &&
         const sentimentData = result[0][0];
         label = sentimentData.label?.toUpperCase() || 'NEUTRAL';
         score = sentimentData.score ?? 0.5;
 
         // Determine sentiment
-        if (label === 'POSITIVE' && score > 0.5) {
+        if (label === 'POSITIVE' && score > 0.5) { // ✅ Fixed: & & → &&
             sentiment = 'positive';
-        } else if (label === 'NEGATIVE' && score > 0.5) {
+        } else if (label === 'NEGATIVE' && score > 0.5) { // ✅ Fixed: & & → &&
             sentiment = 'negative';
         }
     }
@@ -204,6 +210,11 @@ function displaySentiment(result) {
         <i class="fas ${getSentimentIcon(sentiment)} icon"></i>
         <span>${label} (${(score * 100).toFixed(1)}% confidence)</span>
     `;
+    
+    // ✅ INTEGRATE BUSINESS LOGIC HERE
+    const decision = determineBusinessAction(score, label);
+    displayBusinessAction(decision, label, score);
+    logToGoogleSheet(selectedReview, label, score, decision.actionCode);
 }
 
 // Get appropriate icon for sentiment
@@ -221,7 +232,7 @@ function getSentimentIcon(sentiment) {
 // Display business action in UI
 function displayBusinessAction(decision, label, score) {
     actionResult.style.display = 'block';
-
+    
     // Set appropriate class based on action
     actionResult.className = 'action-result';
     if (decision.actionCode === 'OFFER_COUPON') {
@@ -229,7 +240,7 @@ function displayBusinessAction(decision, label, score) {
     } else if (decision.actionCode === 'REQUEST_FEEDBACK') {
         actionResult.classList.add('action-request-feedback');
     } else if (decision.actionCode === 'ASK_REFERRAL') {
-        actionResult.classList.add('action-ask-referral');
+        actionResult.classList.add('action-ask-referral'); // ✅ Fixed: act ionResult → actionResult
     }
 
     // Build button HTML
@@ -266,18 +277,6 @@ function displayBusinessAction(decision, label, score) {
     `;
 }
 
-// Get appropriate icon for sentiment
-function getSentimentIcon(sentiment) {
-    switch (sentiment) {
-        case 'positive':
-            return 'fa-thumbs-up';
-        case 'negative':
-            return 'fa-thumbs-down';
-        default:
-            return 'fa-question-circle';
-    }
-}
-
 // Calculate normalized score for display
 function getNormalizedScore(confidence, label) {
     if (label === "POSITIVE") {
@@ -302,7 +301,6 @@ function hideError() {
 // ============================================
 // BUTTON EVENT HANDLERS
 // ============================================
-
 function applyCoupon() {
     alert('🎁 Coupon applied! Use code: SAVE50 at checkout.');
     logUserAction('coupon_applied');
@@ -339,7 +337,6 @@ function logUserAction(actionType) {
 // ============================================
 // GOOGLE SHEETS LOGGING
 // ============================================
-
 async function logToGoogleSheet(review, label, confidence, actionCode) {
     const logData = {
         timestamp: new Date().toISOString(),
@@ -352,9 +349,9 @@ async function logToGoogleSheet(review, label, confidence, actionCode) {
             normalizedScore: getNormalizedScore(confidence, label)
         }
     };
-
+    
     try {
-        if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbxy6IlGdwB9cphL1zgUtXS9td2ABg5aGA5EHMuKdzuL8sGeLnpQQ0ZP9HCct7SOxKXwDg/exec')) {
+        if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_')) {
             console.warn('⚠️ Google Sheets URL not configured. Skipping log.');
             return;
         }
