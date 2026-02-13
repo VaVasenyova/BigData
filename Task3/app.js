@@ -354,7 +354,7 @@ async function logToGoogleSheet(review, label, confidence, actionCode) {
     };
 
     try {
-        if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_')) {
+        if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbxy6IlGdwB9cphL1zgUtXS9td2ABg5aGA5EHMuKdzuL8sGeLnpQQ0ZP9HCct7SOxKXwDg/exec')) {
             console.warn('⚠️ Google Sheets URL not configured. Skipping log.');
             return;
         }
