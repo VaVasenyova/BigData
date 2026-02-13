@@ -1,25 +1,28 @@
 // ============================================
-// CONFIGURATION - REPLACE WITH YOUR URL AFTER DEPLOYMENT
+// CONFIGURATION
 // ============================================
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbydsl44mz2f-go78SmYOVBGx9EPMub285Xo1EHRZoW-HdUQ-ary4FBgxOIRmPyhhZf48g/exec'; // ← MUST REPLACE
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbydsl44mz2f-go78SmYOVBGx9EPMub285Xo1EHRZoW-HdUQ-ary4FBgxOIRmPyhhZf48g/exec';
 const DATA_FILE = 'reviews_test.tsv';
-const USE_MOCK_API = !localStorage.getItem('huggingface_api_token') ||
-    localStorage.getItem('huggingface_api_token') === '';
 
-// Mock sentiment responses for testing without API token
+// FORCE MOCK MODE - Hugging Face API doesn't allow direct browser requests from GitHub Pages
+const USE_MOCK_API = true;
+
+// Mock sentiment responses
 const MOCK_SENTIMENTS = [
     { label: 'POSITIVE', score: 0.95 },
     { label: 'NEGATIVE', score: 0.92 },
     { label: 'NEUTRAL', score: 0.65 },
     { label: 'POSITIVE', score: 0.88 },
-    { label: 'NEGATIVE', score: 0.76 }
+    { label: 'NEGATIVE', score: 0.76 },
+    { label: 'POSITIVE', score: 0.91 },
+    { label: 'NEGATIVE', score: 0.85 },
+    { label: 'NEUTRAL', score: 0.58 }
 ];
 
 // ============================================
 // STATE MANAGEMENT
 // ============================================
 let reviews = [];
-let apiToken = localStorage.getItem('huggingface_api_token') || '';
 let startTime = null;
 
 // ============================================
@@ -27,42 +30,33 @@ let startTime = null;
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     // Show mock mode warning
-    if (USE_MOCK_API) {
-        document.getElementById('env-warning').style.display = 'block';
-        document.querySelector('.section-title i.fa-key').parentNode.innerHTML +=
-            ' <span class="mock-mode-badge">MOCK MODE</span>';
-    }
-
-    // Load token into input field
-    if (apiToken) {
-        document.getElementById('api-token').value = apiToken;
-    }
+    document.getElementById('env-warning').style.display = 'block';
+    document.querySelector('.section-title').innerHTML += ' <span class="mock-mode-badge">MOCK MODE</span>';
 
     // Load reviews
     await loadReviews();
 
     // Setup event listeners
-    document.getElementById('api-token').addEventListener('input', handleTokenInput);
     document.getElementById('analyze-btn').addEventListener('click', analyzeRandomReview);
 });
 
 // ============================================
-// DATA LOADING WITH ERROR HANDLING
+// DATA LOADING
 // ============================================
 async function loadReviews() {
     try {
         console.log('Loading reviews from:', DATA_FILE);
         const response = await fetch(DATA_FILE);
-
+        
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         const tsvText = await response.text();
         reviews = parseTSV(tsvText);
-
+        
         if (reviews.length === 0) {
-            throw new Error('No valid reviews found in TSV file');
+            throw new Error('No valid reviews found');
         }
 
         console.log(`✓ Loaded ${reviews.length} reviews`);
@@ -72,10 +66,9 @@ async function loadReviews() {
         showError(
             'Failed to load reviews',
             [
-                `File: ${DATA_FILE}`,
                 `Error: ${error.message}`,
-                '✅ Make sure file exists in same folder as index.html',
-                '✅ Run from local server (not file:// protocol)'
+                'Make sure reviews_test.tsv exists in the same folder',
+                'Check browser console (F12) for details'
             ]
         );
         return false;
@@ -90,22 +83,9 @@ function parseTSV(text) {
 }
 
 // ============================================
-// EVENT HANDLERS
+// ANALYSIS FUNCTION
 // ============================================
-function handleTokenInput(e) {
-    const token = e.target.value.trim();
-    if (token) {
-        localStorage.setItem('huggingface_api_token', token);
-        apiToken = token;
-        location.reload(); // Reload to switch out of mock mode
-    } else {
-        localStorage.removeItem('huggingface_api_token');
-        apiToken = '';
-    }
-}
-
 async function analyzeRandomReview() {
-    // Validate reviews loaded
     if (reviews.length === 0) {
         const success = await loadReviews();
         if (!success) return;
@@ -130,10 +110,8 @@ async function analyzeRandomReview() {
         // Start timer
         startTime = Date.now();
 
-        // Call API (real or mock)
-        const sentimentResult = USE_MOCK_API
-            ? getMockSentiment()
-            : await callHuggingFaceAPI(reviewText);
+        // Get mock sentiment (simulated API call)
+        const sentimentResult = await getMockSentiment();
 
         // Determine business action
         const actionData = determineBusinessAction(sentimentResult);
@@ -142,7 +120,7 @@ async function analyzeRandomReview() {
         displaySentiment(sentimentResult);
         displayBusinessAction(actionData);
 
-        // Log to Google Sheets (skip if URL not configured)
+        // Log to Google Sheets
         if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== 'YOUR_GOOGLE_SCRIPT_WEB_APP_URL_HERE') {
             await logToGoogleSheets(reviewText, sentimentResult, actionData);
         } else {
@@ -157,72 +135,27 @@ async function analyzeRandomReview() {
             'Analysis failed',
             [
                 `Error: ${error.message || 'Unknown error'}`,
-                USE_MOCK_API
-                    ? '💡 Running in mock mode - real API requires token'
-                    : '💡 Check: API token valid? Running from http://localhost?',
-                '💡 Open browser console (F12) for technical details'
+                '💡 Running in mock mode (simulated AI responses)',
+                '💡 Check browser console (F12) for technical details'
             ]
         );
     } finally {
-        // UI State: Done
         document.getElementById('analyze-btn').disabled = false;
         document.getElementById('loading').style.display = 'none';
     }
 }
 
 // ============================================
-// API INTEGRATION (REAL + MOCK)
+// MOCK API (Simulates Hugging Face)
 // ============================================
-async function callHuggingFaceAPI(text) {
-    if (!apiToken) {
-        throw new Error('No API token provided. Enter token or use mock mode.');
-    }
-
-    console.log('Calling Hugging Face API...');
-
-    const response = await fetch('https://api-inference.huggingface.co/models/siebert/sentiment-roberta-large-english', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiToken}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ inputs: text })
-    });
-
-    if (!response.ok) {
-        let errorMsg = `API error ${response.status}`;
-        try {
-            const errorData = await response.json();
-            errorMsg += `: ${JSON.stringify(errorData)}`;
-        } catch (e) {
-            errorMsg += `: ${await response.text()}`;
-        }
-        throw new Error(errorMsg);
-    }
-
-    const data = await response.json();
-    return parseSentimentResult(data);
-}
-
 function getMockSentiment() {
-    // Simulate network delay
     return new Promise(resolve => {
+        // Simulate network delay (800ms)
         setTimeout(() => {
             const randomIndex = Math.floor(Math.random() * MOCK_SENTIMENTS.length);
             resolve(MOCK_SENTIMENTS[randomIndex]);
         }, 800);
     });
-}
-
-function parseSentimentResult(apiResponse) {
-    if (Array.isArray(apiResponse) && apiResponse.length > 0 &&
-        apiResponse[0].label && apiResponse[0].score) {
-        return {
-            label: apiResponse[0].label.toUpperCase(),
-            score: apiResponse[0].score
-        };
-    }
-    throw new Error('Unexpected API response format: ' + JSON.stringify(apiResponse));
 }
 
 // ============================================
@@ -231,7 +164,7 @@ function parseSentimentResult(apiResponse) {
 function determineBusinessAction(sentiment) {
     const { label, score } = sentiment;
 
-    // Decision Matrix - FIXED SYNTAX (&& not & &)
+    // Decision Matrix
     if (label === 'NEGATIVE' && score > 0.7) {
         return {
             action: 'OFFER_COUPON',
@@ -322,7 +255,7 @@ function displaySentiment(result) {
             <i class="fas ${sentimentIcon}" style="color: ${sentimentColor};"></i>
         </div>
         <div class="sentiment-label">
-            ${label} ${USE_MOCK_API ? '<span style="font-size:0.7em; color:#aaa;">(mock)</span>' : ''}
+            ${label} <span style="font-size:0.7em; color:#aaa;">(simulated)</span>
         </div>
         <div class="sentiment-confidence">
             ${confidencePercent}% confidence
@@ -340,7 +273,7 @@ function displayBusinessAction(actionData) {
     badge.innerHTML = `
         <i class="fas ${icon}"></i>
         <span class="action-type">${action.replace('_', ' ')}</span>
-        ${USE_MOCK_API ? '<span style="font-size:0.8em; opacity:0.8; margin-left:8px;">(simulated)</span>' : ''}
+        <span style="font-size:0.8em; opacity:0.8; margin-left:8px;">(simulated decision)</span>
     `;
     badge.classList.add('show');
 
@@ -359,10 +292,10 @@ function displayBusinessAction(actionData) {
 
 function showError(title, details = []) {
     document.getElementById('error-text').innerHTML = `<strong>${title}</strong>`;
-
+    
     const detailsList = document.getElementById('error-details');
     detailsList.innerHTML = '';
-
+    
     if (Array.isArray(details)) {
         details.forEach(detail => {
             const li = document.createElement('li');
@@ -370,12 +303,12 @@ function showError(title, details = []) {
             detailsList.appendChild(li);
         });
     }
-
+    
     document.getElementById('error-message').classList.add('show');
 }
 
 // ============================================
-// GOOGLE SHEETS LOGGING (CORS-SAFE)
+// GOOGLE SHEETS LOGGING
 // ============================================
 async function logToGoogleSheets(review, sentiment, actionData) {
     try {
@@ -386,21 +319,20 @@ async function logToGoogleSheets(review, sentiment, actionData) {
                 score: sentiment.score
             },
             meta: {
-                model: USE_MOCK_API ? 'mock-sentiment' : 'siebert/sentiment-roberta-large-english',
+                model: 'mock-sentiment-simulator',
                 processingTime: Date.now() - startTime,
                 timestamp: new Date().toISOString(),
                 userAgent: navigator.userAgent,
-                mockMode: USE_MOCK_API
+                mockMode: true
             },
             action_taken: actionData.action
         };
 
         console.log('Logging to Google Sheets:', logData);
 
-        // Use POST with proper CORS handling
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            mode: 'cors', // Explicitly request CORS
+            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json'
             },
