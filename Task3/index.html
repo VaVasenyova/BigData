@@ -1,376 +1,343 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Review Sentiment Analyzer</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Sentiment Analyzer</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 40px 20px;
-        }
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        }
+    .container {
+      background-color: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      width: 90%;
+      max-width: 800px;
+      padding: 30px;
+      margin: 20px 0;
+    }
 
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 2.5em;
-        }
+    h1 {
+      text-align: center;
+      color: #4a4a4a;
+      margin-bottom: 20px;
+      font-size: 2.2rem;
+    }
 
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 40px;
-            font-size: 1.1em;
-        }
+    .description {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #666;
+      line-height: 1.6;
+    }
 
-        .section {
-            margin-bottom: 40px;
-            padding: 25px;
-            background: #f8f9fa;
-            border-radius: 12px;
-            border: 1px solid #e9ecef;
-        }
+    .api-section {
+      margin-bottom: 25px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: 10px;
+      border-left: 4px solid #667eea;
+    }
 
-        .section h2 {
-            color: #495057;
-            margin-bottom: 15px;
-            font-size: 1.3em;
-        }
+    .api-section h2 {
+      margin-bottom: 15px;
+      color: #4a4a4a;
+      font-size: 1.4rem;
+    }
 
-        .section p {
-            color: #6c757d;
-            line-height: 1.6;
-            margin-bottom: 10px;
-        }
+    .api-input {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
 
-        .section a {
-            color: #007bff;
-            text-decoration: none;
-        }
+    input[type="text"] {
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
 
-        .section a:hover {
-            text-decoration: underline;
-        }
+    input[type="text"]:focus {
+      border-color: #667eea;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
 
-        label {
-            display: block;
-            margin-bottom: 10px;
-            color: #495057;
-            font-weight: 600;
-        }
+    button {
+      background: linear-gradient(to right, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 10px;
+    }
 
-        input[type="text"] {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
 
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
+    button:active {
+      transform: translateY(0);
+    }
 
-        .hint {
-            font-size: 0.85em;
-            color: #6c757d;
-            margin-top: 8px;
-            font-style: italic;
-        }
+    .review-section {
+      margin-bottom: 25px;
+    }
 
-        .steps {
-            margin-top: 15px;
-        }
+    .review-card {
+      background-color: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
 
-        .steps ol {
-            padding-left: 20px;
-            color: #495057;
-            line-height: 1.8;
-        }
+    .review-text {
+      line-height: 1.6;
+      margin-bottom: 15px;
+      font-size: 16px;
+      color: #444;
+    }
 
-        #analyze-btn {
-            width: 100%;
-            padding: 16px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-top: 10px;
-        }
+    .sentiment-result {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+      background-color: #f8f9fa;
+      font-weight: bold;
+      font-size: 18px;
+    }
 
-        #analyze-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-        }
+    /* Business Action UI Styles */
+    .action-result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      font-weight: bold;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+    }
 
-        #analyze-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
+    .action-buttons {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
 
-        .review-box {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            padding: 20px;
-            min-height: 100px;
-            margin-top: 15px;
-            font-size: 1.1em;
-            color: #333;
-            line-height: 1.6;
-            word-wrap: break-word;
-        }
+    .action-buttons button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: transform 0.2s;
+    }
 
-        .loading {
-            text-align: center;
-            color: #667eea;
-            font-size: 1.1em;
-            margin-top: 15px;
-            display: none;
-        }
+    .action-buttons button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
 
-        .sentiment-result {
-            margin-top: 20px;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            font-size: 1.2em;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
+    .coupon-btn {
+      background-color: #ffffff;
+      color: #ef4444;
+    }
 
-        .sentiment-result i {
-            font-size: 2em;
-        }
+    .feedback-btn {
+      background-color: #ffffff;
+      color: #6b7280;
+    }
 
-        .sentiment-result.positive {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
+    .referral-btn {
+      background-color: #ffffff;
+      color: #3b82f6;
+    }
 
-        .sentiment-result.negative {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
+    .positive {
+      color: #28a745;
+      border: 2px solid #28a745;
+    }
 
-        .sentiment-result.neutral {
-            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-            color: white;
-        }
+    .negative {
+      color: #dc3545;
+      border: 2px solid #dc3545;
+    }
 
-        .error-message {
-            background: #fee2e2;
-            border-left: 4px solid #ef4444;
-            color: #b91c1c;
-            padding: 12px 15px;
-            border-radius: 6px;
-            margin-top: 15px;
-            display: none;
-        }
+    .neutral {
+      color: #ffc107;
+      border: 2px solid #ffc107;
+    }
 
-        /* ✅ ADDED: Action Result Styles */
-        .action-result {
-            margin-top: 25px;
-            padding: 25px;
-            border-radius: 12px;
-            background: white;
-            border: 2px solid #e9ecef;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
+    .icon {
+      font-size: 24px;
+    }
 
-        .action-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e9ecef;
-        }
+    .loading {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
 
-        .action-header i {
-            font-size: 2em;
-            color: #667eea;
-        }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left: 4px solid #667eea;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
 
-        .action-header h3 {
-            color: #333;
-            font-size: 1.4em;
-            margin: 0;
-        }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
 
-        .action-content {
-            padding: 15px;
-            border-left: 4px solid #667eea;
-            background-color: #f8f9fa;
-            margin-bottom: 20px;
-            border-radius: 6px;
-        }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
 
-        .action-content p {
-            margin: 8px 0;
-            color: #495057;
-            line-height: 1.6;
-        }
+    .error {
+      color: #dc3545;
+      padding: 10px;
+      border-radius: 5px;
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      margin: 10px 0;
+      display: none;
+    }
 
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
+    .instructions {
+      margin-top: 30px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
 
-        .btn-primary, .btn-secondary {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+    .instructions h3 {
+      margin-bottom: 10px;
+      color: #4a4a4a;
+    }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
+    .instructions ol {
+      padding-left: 20px;
+    }
 
-        .btn-secondary {
-            background: #e9ecef;
-            color: #495057;
-        }
+    .instructions li {
+      margin-bottom: 8px;
+    }
 
-        .btn-primary:hover, .btn-secondary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
-        }
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+    }
 
-        .action-offer-coupon .action-content {
-            border-left-color: #ef4444;
-            background-color: #fef2f2;
-        }
+    @media (max-width: 600px) {
+      .container {
+        width: 95%;
+        padding: 20px;
+      }
 
-        .action-request-feedback .action-content {
-            border-left-color: #6b7280;
-            background-color: #f3f4f6;
-        }
+      h1 {
+        font-size: 1.8rem;
+      }
 
-        .action-ask-referral .action-content {
-            border-left-color: #3b82f6;
-            background-color: #eff6ff;
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #6c757d;
-            font-size: 0.9em;
-            padding-top: 20px;
-            border-top: 1px solid #e9ecef;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 25px;
-            }
-
-            h1 {
-                font-size: 2em;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .btn-primary, .btn-secondary {
-                width: 100%;
-            }
-        }
-    </style>
+      button {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1>🤖 Review Sentiment Analyzer</h1>
-        <p class="subtitle">AI-Driven Decision System - From Insight to Action</p>
+  <div class="container">
+    <h1>Review Sentiment Analyzer</h1>
+    <p class="description">Analyze the sentiment of product reviews using Hugging Face's AI model</p>
 
-        <!-- API Token Section -->
-        <div class="section">
-            <h2>🔑 Hugging Face API Setup</h2>
-            <label for="api-token">Enter your Hugging Face API Token:</label>
-            <input type="text" id="api-token" placeholder="Enter your Hugging Face API token here...">
-            <p class="hint">🔒 Your token is stored only in your browser and is never sent to our servers.</p>
-            
-            <div class="steps">
-                <p><strong>📝 How to get a Hugging Face API Token:</strong></p>
-                <ol>
-                    <li>Go to <a href="https://huggingface.co/" target="_blank">huggingface.co</a> and create a free account</li>
-                    <li>Navigate to your profile settings and access tokens section</li>
-                    <li>Generate a new token with read permissions</li>
-                    <li>Copy the token and paste it in the field above</li>
-                </ol>
-            </div>
-        </div>
-
-        <!-- Analyze Section -->
-        <div class="section">
-            <h2>🎯 Analyze Random Review</h2>
-            <button id="analyze-btn">Analyze Random Review</button>
-            <div class="loading" id="loading">🔄 Analyzing sentiment...</div>
-            
-            <div class="review-box" id="review-text">
-                Click the button above to analyze a random review
-            </div>
-            
-            <div class="error-message" id="error-message"></div>
-            
-            <div class="sentiment-result" id="sentiment-result">
-                Sentiment will appear here
-            </div>
-            
-            <!-- ✅ ADDED: Action Result Container -->
-            <div class="action-result" id="action-result" style="display: none;">
-                <!-- Business action will be displayed here dynamically -->
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <p>This app uses the <strong>siebert/sentiment-roberta-large-english</strong> model from Hugging Face<br>
-            and implements automated business decision logic based on sentiment analysis.</p>
-        </div>
+    <div class="api-section">
+      <h2>Hugging Face API Setup</h2>
+      <div class="api-input">
+        <label for="api-token">Enter your Hugging Face API Token:</label>
+        <input type="text" id="api-token" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+        <p><small>Your token is stored only in your browser and is never sent to our servers.</small></p>
+      </div>
     </div>
 
-    <!-- External Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    
-    <!-- Main App Script -->
-    <script src="app.js"></script>
+    <div class="review-section">
+      <button id="analyze-btn">Analyze Random Review</button>
+
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Analyzing sentiment...</p>
+      </div>
+
+      <div id="action-result" class="action-result" style="display: none;"></div>
+
+      <div class="error" id="error-message"></div>
+
+      <div class="review-card">
+        <h3>Selected Review:</h3>
+        <p class="review-text" id="review-text">Click the button above to analyze a random review</p>
+      </div>
+
+      <div class="sentiment-result" id="sentiment-result">
+        <i class="fas fa-question-circle icon"></i>
+        <span>Sentiment will appear here</span>
+      </div>
+    </div>
+
+    <div class="instructions">
+      <h3>How to get a Hugging Face API Token:</h3>
+      <ol>
+        <li>Go to <a href="https://huggingface.co/" target="_blank">huggingface.co</a> and create a free account</li>
+        <li>Navigate to your profile settings and access tokens section</li>
+        <li>Generate a new token with read permissions</li>
+        <li>Copy the token and paste it in the field above</li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>
+    <p>This app uses the distilbert-base-uncased-finetuned-sst-2-english model from Hugging Face</p>
+  </footer>
+
+  <script src="app.js"></script>
 </body>
+
 </html>
