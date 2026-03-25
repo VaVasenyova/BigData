@@ -252,7 +252,7 @@ ${cardsInfo}
 Дай подробную интерпретацию на русском языке (300-500 слов).`;
 
     try {
-        const response = await fetch('https://huggingface.co/mistralai/Mistral-7B-v0.3', {
+        const response = await fetch('https://huggingface.co/Qwen/Qwen3.5-27B', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${hfApiKey}`,
