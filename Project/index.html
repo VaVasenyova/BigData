@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MysticAI - Таро, Гороскоп и Натальная Карта</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ MysticAI</h1>
+            <p class="subtitle">Персональные эзотерические практики с AI</p>
+        </header>
+
+        <!-- Главный экран выбора -->
+        <div id="mainScreen" class="screen active">
+            <h2>Выберите раздел</h2>
+            <div class="main-options">
+                <button class="main-option-btn" data-option="tarot">
+                    <span class="icon">🎴</span>
+                    <span>Таро Расклады</span>
+                    <p>Персональные расклады с AI-интерпретацией</p>
+                </button>
+                <button class="main-option-btn" data-option="horoscope">
+                    <span class="icon">⭐</span>
+                    <span>Гороскоп</span>
+                    <p>Персональный прогноз по знаку зодиака</p>
+                </button>
+                <button class="main-option-btn" data-option="natal">
+                    <span class="icon">🌟</span>
+                    <span>Натальная Карта</span>
+                    <p>Полный астрологический портрет личности</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- Экран выбора категории таро -->
+        <div id="categoryScreen" class="screen">
+            <button class="back-btn" id="backToMainFromTarot">← Назад</button>
+            <h2>Выберите категорию расклада</h2>
+            <div class="categories">
+                <button class="category-btn" data-category="career">
+                    <span class="icon">💼</span>
+                    <span>Карьера</span>
+                </button>
+                <button class="category-btn" data-category="love">
+                    <span class="icon">❤️</span>
+                    <span>Отношения</span>
+                </button>
+                <button class="category-btn" data-category="money">
+                    <span class="icon">💰</span>
+                    <span>Финансы</span>
+                </button>
+                <button class="category-btn" data-category="general">
+                    <span class="icon">🔮</span>
+                    <span>Общее</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Экран расклада таро -->
+        <div id="spreadScreen" class="screen">
+            <h2 id="categoryTitle">Ваш расклад</h2>
+            <div class="cards-container" id="cardsContainer">
+                <div class="card-slot">
+                    <div class="card-back"></div>
+                </div>
+                <div class="card-slot">
+                    <div class="card-back"></div>
+                </div>
+                <div class="card-slot">
+                    <div class="card-back"></div>
+                </div>
+            </div>
+            <button class="reveal-btn" id="revealBtn">Открыть карты</button>
+        </div>
+
+        <!-- Экран выбора знака зодиака -->
+        <div id="zodiacScreen" class="screen">
+            <button class="back-btn" id="backToMainFromHoroscope">← Назад</button>
+            <h2>Ваш знак зодиака</h2>
+            <div class="zodiac-grid" id="zodiacGrid"></div>
+        </div>
+
+        <!-- Экран гороскопа -->
+        <div id="horoscopeScreen" class="screen">
+            <h2 id="horoscopeTitle">Ваш гороскоп</h2>
+            <div class="zodiac-sign-display" id="zodiacSignDisplay">
+                <div class="zodiac-symbol" id="zodiacSymbol">♈</div>
+                <div class="zodiac-name" id="zodiacName">Овен</div>
+            </div>
+            <div class="loading" id="loadingHoroscope">
+                <div class="spinner"></div>
+                <p>AI составляет ваш персональный гороскоп...</p>
+            </div>
+            <div id="horoscopeContent" class="horoscope-content"></div>
+            <button class="new-spread-btn" id="newHoroscopeBtn">Другой знак</button>
+        </div>
+
+        <!-- Экран ввода данных для натальной карты -->
+        <div id="natalInputScreen" class="screen">
+            <button class="back-btn" id="backToMainFromNatal">← Назад</button>
+            <h2>🌟 Ваша натальная карта</h2>
+            <p class="subtitle">Персональный астрологический портрет</p>
+
+            <div class="natal-form">
+                <div class="form-group">
+                    <label for="birthName">Ваше имя</label>
+                    <input type="text" id="birthName" placeholder="Введите имя">
+                </div>
+
+                <div class="form-group">
+                    <label for="birthDate">Дата рождения</label>
+                    <input type="date" id="birthDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="birthTime">Время рождения</label>
+                    <input type="time" id="birthTime" placeholder="ЧЧ:ММ">
+                    <small>Если не знаете точное время, оставьте 12:00</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="birthCity">Город рождения</label>
+                    <input type="text" id="birthCity" placeholder="Например: Москва">
+                </div>
+
+                <button class="reveal-btn" id="calculateNatalBtn">Рассчитать натальную карту</button>
+            </div>
+        </div>
+
+        <!-- Экран натальной карты -->
+        <div id="natalChartScreen" class="screen">
+            <h2 id="natalChartTitle">Натальная карта</h2>
+            <div class="natal-user-info" id="natalUserInfo"></div>
+
+            <div class="chart-container">
+                <div class="natal-chart-wheel" id="natalChartWheel">
+                    <div class="wheel-title">Зодиакальный круг</div>
+                </div>
+                <div class="planets-list" id="planetsList">
+                    <h3>Положение планет</h3>
+                </div>
+            </div>
+
+            <div class="loading" id="loadingNatal">
+                <div class="spinner"></div>
+                <p>AI анализирует вашу натальную карту...</p>
+            </div>
+
+            <div id="natalInterpretation" class="natal-interpretation"></div>
+
+            <button class="new-spread-btn" id="newNatalBtn">Новая натальная карта</button>
+        </div>
+
+        <!-- Экран интерпретации таро -->
+        <div id="interpretationScreen" class="screen">
+            <h2>Интерпретация расклада</h2>
+            <div id="cardsDisplay" class="cards-display"></div>
+            <div class="loading" id="loadingTarot">
+                <div class="spinner"></div>
+                <p id="loadingText">AI анализирует ваш расклад...</p>
+            </div>
+            <div id="aiInterpretation" class="interpretation"></div>
+            <button class="new-spread-btn" id="newSpreadBtn">Новый расклад</button>
+        </div>
+    </div>
+
+    <!-- Кнопка настроек API -->
+    <button id="apiSettingsBtn" class="api-settings-btn">⚙️ AI Настройки</button>
+
+    <!-- Модальное окно настроек -->
+    <div id="apiSettingsModal" class="modal">
+        <div class="modal-content">
+            <h3>Настройки Hugging Face API</h3>
+            <input type="password" id="apiKeyInput" placeholder="Введите ваш API токен">
+            <p class="hint">
+                Получите бесплатный токен на
+                <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a>
+            </p>
+            <p class="hint-small">
+                1. Создайте аккаунт → 2. Settings → 3. Access Tokens → 4. Create Token (тип: Write)
+            </p>
+            <div class="modal-buttons">
+                <button id="saveApiKey" class="modal-btn save">Сохранить</button>
+                <button id="closeSettings" class="modal-btn close">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="tarot-data.js"></script>
+    <script src="zodiac-data.js"></script>
+    <script src="natal-chart-data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
