@@ -1,0 +1,95 @@
+// Ссылки на изображения карт Таро (публичный домен)
+const tarotCardImages = {
+    // Старшие Арканы
+    0: 'https://www.sacred-texts.com/tarot/pkt/img/ar00.jpg',
+    1: 'https://www.sacred-texts.com/tarot/pkt/img/ar01.jpg',
+    2: 'https://www.sacred-texts.com/tarot/pkt/img/ar02.jpg',
+    3: 'https://www.sacred-texts.com/tarot/pkt/img/ar03.jpg',
+    4: 'https://www.sacred-texts.com/tarot/pkt/img/ar04.jpg',
+    5: 'https://www.sacred-texts.com/tarot/pkt/img/ar05.jpg',
+    6: 'https://www.sacred-texts.com/tarot/pkt/img/ar06.jpg',
+    7: 'https://www.sacred-texts.com/tarot/pkt/img/ar07.jpg',
+    8: 'https://www.sacred-texts.com/tarot/pkt/img/ar08.jpg',
+    9: 'https://www.sacred-texts.com/tarot/pkt/img/ar09.jpg',
+    10: 'https://www.sacred-texts.com/tarot/pkt/img/ar10.jpg',
+    11: 'https://www.sacred-texts.com/tarot/pkt/img/ar11.jpg',
+    12: 'https://www.sacred-texts.com/tarot/pkt/img/ar12.jpg',
+    13: 'https://www.sacred-texts.com/tarot/pkt/img/ar13.jpg',
+    14: 'https://www.sacred-texts.com/tarot/pkt/img/ar14.jpg',
+    15: 'https://www.sacred-texts.com/tarot/pkt/img/ar15.jpg',
+    16: 'https://www.sacred-texts.com/tarot/pkt/img/ar16.jpg',
+    17: 'https://www.sacred-texts.com/tarot/pkt/img/ar17.jpg',
+    18: 'https://www.sacred-texts.com/tarot/pkt/img/ar18.jpg',
+    19: 'https://www.sacred-texts.com/tarot/pkt/img/ar19.jpg',
+    20: 'https://www.sacred-texts.com/tarot/pkt/img/ar20.jpg',
+    21: 'https://www.sacred-texts.com/tarot/pkt/img/ar21.jpg',
+
+    // Жезлы (Wands)
+    22: 'https://www.sacred-texts.com/tarot/pkt/img/wa01.jpg',
+    23: 'https://www.sacred-texts.com/tarot/pkt/img/wa02.jpg',
+    24: 'https://www.sacred-texts.com/tarot/pkt/img/wa03.jpg',
+    25: 'https://www.sacred-texts.com/tarot/pkt/img/wa04.jpg',
+    26: 'https://www.sacred-texts.com/tarot/pkt/img/wa05.jpg',
+    27: 'https://www.sacred-texts.com/tarot/pkt/img/wa06.jpg',
+    28: 'https://www.sacred-texts.com/tarot/pkt/img/wa07.jpg',
+    29: 'https://www.sacred-texts.com/tarot/pkt/img/wa08.jpg',
+    30: 'https://www.sacred-texts.com/tarot/pkt/img/wa09.jpg',
+    31: 'https://www.sacred-texts.com/tarot/pkt/img/wa10.jpg',
+    32: 'https://www.sacred-texts.com/tarot/pkt/img/wapa.jpg',
+    33: 'https://www.sacred-texts.com/tarot/pkt/img/wakn.jpg',
+    34: 'https://www.sacred-texts.com/tarot/pkt/img/waqn.jpg',
+    35: 'https://www.sacred-texts.com/tarot/pkt/img/waki.jpg',
+
+    // Кубки (Cups)
+    36: 'https://www.sacred-texts.com/tarot/pkt/img/cu01.jpg',
+    37: 'https://www.sacred-texts.com/tarot/pkt/img/cu02.jpg',
+    38: 'https://www.sacred-texts.com/tarot/pkt/img/cu03.jpg',
+    39: 'https://www.sacred-texts.com/tarot/pkt/img/cu04.jpg',
+    40: 'https://www.sacred-texts.com/tarot/pkt/img/cu05.jpg',
+    41: 'https://www.sacred-texts.com/tarot/pkt/img/cu06.jpg',
+    42: 'https://www.sacred-texts.com/tarot/pkt/img/cu07.jpg',
+    43: 'https://www.sacred-texts.com/tarot/pkt/img/cu08.jpg',
+    44: 'https://www.sacred-texts.com/tarot/pkt/img/cu09.jpg',
+    45: 'https://www.sacred-texts.com/tarot/pkt/img/cu10.jpg',
+    46: 'https://www.sacred-texts.com/tarot/pkt/img/cupa.jpg',
+    47: 'https://www.sacred-texts.com/tarot/pkt/img/cukn.jpg',
+    48: 'https://www.sacred-texts.com/tarot/pkt/img/cuqn.jpg',
+    49: 'https://www.sacred-texts.com/tarot/pkt/img/cuki.jpg',
+
+    // Мечи (Swords)
+    50: 'https://www.sacred-texts.com/tarot/pkt/img/sw01.jpg',
+    51: 'https://www.sacred-texts.com/tarot/pkt/img/sw02.jpg',
+    52: 'https://www.sacred-texts.com/tarot/pkt/img/sw03.jpg',
+    53: 'https://www.sacred-texts.com/tarot/pkt/img/sw04.jpg',
+    54: 'https://www.sacred-texts.com/tarot/pkt/img/sw05.jpg',
+    55: 'https://www.sacred-texts.com/tarot/pkt/img/sw06.jpg',
+    56: 'https://www.sacred-texts.com/tarot/pkt/img/sw07.jpg',
+    57: 'https://www.sacred-texts.com/tarot/pkt/img/sw08.jpg',
+    58: 'https://www.sacred-texts.com/tarot/pkt/img/sw09.jpg',
+    59: 'https://www.sacred-texts.com/tarot/pkt/img/sw10.jpg',
+    60: 'https://www.sacred-texts.com/tarot/pkt/img/swpa.jpg',
+    61: 'https://www.sacred-texts.com/tarot/pkt/img/swkn.jpg',
+    62: 'https://www.sacred-texts.com/tarot/pkt/img/swqn.jpg',
+    63: 'https://www.sacred-texts.com/tarot/pkt/img/swki.jpg',
+
+    // Пентакли (Pentacles)
+    64: 'https://www.sacred-texts.com/tarot/pkt/img/pe01.jpg',
+    65: 'https://www.sacred-texts.com/tarot/pkt/img/pe02.jpg',
+    66: 'https://www.sacred-texts.com/tarot/pkt/img/pe03.jpg',
+    67: 'https://www.sacred-texts.com/tarot/pkt/img/pe04.jpg',
+    68: 'https://www.sacred-texts.com/tarot/pkt/img/pe05.jpg',
+    69: 'https://www.sacred-texts.com/tarot/pkt/img/pe06.jpg',
+    70: 'https://www.sacred-texts.com/tarot/pkt/img/pe07.jpg',
+    71: 'https://www.sacred-texts.com/tarot/pkt/img/pe08.jpg',
+    72: 'https://www.sacred-texts.com/tarot/pkt/img/pe09.jpg',
+    73: 'https://www.sacred-texts.com/tarot/pkt/img/pe10.jpg',
+    74: 'https://www.sacred-texts.com/tarot/pkt/img/papa.jpg',
+    75: 'https://www.sacred-texts.com/tarot/pkt/img/pakn.jpg',
+    76: 'https://www.sacred-texts.com/tarot/pkt/img/paqn.jpg',
+    77: 'https://www.sacred-texts.com/tarot/pkt/img/paki.jpg'
+};
+
+// Функция для получения URL изображения карты
+function getCardImageUrl(cardId) {
+    return tarotCardImages[cardId] || 'https://www.sacred-texts.com/tarot/pkt/img/ar00.jpg';
+}

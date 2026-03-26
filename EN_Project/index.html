@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TarotMate - Tarot, Horoscope & Natal Chart</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ TarotMate</h1>
+            <p class="subtitle">Personal esoteric practices powered by AI</p>
+        </header>
+
+        <!-- Main selection screen -->
+        <div id="mainScreen" class="screen active">
+            <h2>Choose a Section</h2>
+            <div class="main-options">
+                <button class="main-option-btn" data-option="tarot">
+                    <span class="icon">🎴</span>
+                    <span>Tarot Readings</span>
+                    <p>Personal spreads with AI interpretation</p>
+                </button>
+                <button class="main-option-btn" data-option="horoscope">
+                    <span class="icon">⭐</span>
+                    <span>Horoscope</span>
+                    <p>Personal forecast by zodiac sign</p>
+                </button>
+                <button class="main-option-btn" data-option="natal">
+                    <span class="icon">🌟</span>
+                    <span>Natal Chart</span>
+                    <p>Complete astrological personality profile</p>
+                </button>
+                <button class="main-option-btn" data-option="dream">
+                    <span class="icon">🌙</span>
+                    <span>Dream Interpretation</span>
+                    <p>AI analysis of your dreams via chat</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarot category selection screen -->
+        <div id="categoryScreen" class="screen">
+            <button class="back-btn" id="backToMainFromTarot">← Back</button>
+            <h2>Choose a Reading Category</h2>
+            <div class="categories">
+                <button class="category-btn" data-category="career">
+                    <span class="icon">💼</span>
+                    <span>Career</span>
+                </button>
+                <button class="category-btn" data-category="love">
+                    <span class="icon">❤️</span>
+                    <span>Relationships</span>
+                </button>
+                <button class="category-btn" data-category="money">
+                    <span class="icon">💰</span>
+                    <span>Finances</span>
+                </button>
+                <button class="category-btn" data-category="general">
+                    <span class="icon">🔮</span>
+                    <span>General</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarot spread screen -->
+        <div id="spreadScreen" class="screen">
+            <h2 id="categoryTitle">Your Reading</h2>
+            <div class="cards-container" id="cardsContainer">
+                <div class="card-slot">
+                    <div class="card-back"></div>
+                </div>
+                <div class="card-slot">
+                    <div class="card-back"></div>
+                </div>
+                <div class="card-slot">
+                    <div class="card-back"></div>
+                </div>
+            </div>
+            <button class="reveal-btn" id="revealBtn">Reveal Cards</button>
+        </div>
+
+        <!-- Zodiac sign selection screen -->
+        <div id="zodiacScreen" class="screen">
+            <button class="back-btn" id="backToMainFromHoroscope">← Back</button>
+            <h2>Your Zodiac Sign</h2>
+            <div class="zodiac-grid" id="zodiacGrid"></div>
+        </div>
+
+        <!-- Horoscope screen -->
+        <div id="horoscopeScreen" class="screen">
+            <h2 id="horoscopeTitle">Your Horoscope</h2>
+            <div class="zodiac-sign-display" id="zodiacSignDisplay">
+                <div class="zodiac-symbol" id="zodiacSymbol">♈</div>
+                <div class="zodiac-name" id="zodiacName">Aries</div>
+            </div>
+            <div class="loading" id="loadingHoroscope">
+                <div class="spinner"></div>
+                <p id="loadingHoroscopeText">AI is preparing your personal horoscope...</p>
+            </div>
+            <div id="horoscopeContent" class="horoscope-content"></div>
+            <button class="new-spread-btn" id="newHoroscopeBtn">Choose Another Sign</button>
+        </div>
+
+        <!-- Natal chart input screen -->
+        <div id="natalInputScreen" class="screen">
+            <button class="back-btn" id="backToMainFromNatal">← Back</button>
+            <h2>🌟 Your Natal Chart</h2>
+            <p class="subtitle">Personal astrological profile</p>
+
+            <div class="natal-form">
+                <div class="form-group">
+                    <label for="birthName">Your Name</label>
+                    <input type="text" id="birthName" placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label for="birthDate">Date of Birth</label>
+                    <input type="date" id="birthDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="birthTime">Time of Birth</label>
+                    <input type="time" id="birthTime" placeholder="HH:MM">
+                    <small>If unsure, leave as 12:00</small>
+                </div>
+                <div class="form-group">
+                    <label for="birthCity">City of Birth</label>
+                    <input type="text" id="birthCity" placeholder="e.g., London">
+                </div>
+                <button class="reveal-btn" id="calculateNatalBtn">Calculate Natal Chart</button>
+            </div>
+        </div>
+
+        <!-- Natal chart display screen -->
+        <div id="natalChartScreen" class="screen">
+            <h2 id="natalChartTitle">Natal Chart</h2>
+            <div class="natal-user-info" id="natalUserInfo"></div>
+            <div class="chart-container">
+                <div class="natal-chart-wheel" id="natalChartWheel">
+                    <div class="wheel-title">Zodiac Wheel</div>
+                </div>
+                <div class="planets-list" id="planetsList">
+                    <h3>Planet Positions</h3>
+                </div>
+            </div>
+            <div class="loading" id="loadingNatal">
+                <div class="spinner"></div>
+                <p id="loadingNatalText">AI is analyzing your natal chart...</p>
+            </div>
+            <div id="natalInterpretation" class="natal-interpretation"></div>
+            <button class="new-spread-btn" id="newNatalBtn">New Natal Chart</button>
+        </div>
+
+        <!-- Tarot interpretation screen -->
+        <div id="interpretationScreen" class="screen">
+            <h2>Reading Interpretation</h2>
+            <div id="cardsDisplay" class="cards-display"></div>
+            <div class="loading" id="loadingTarot">
+                <div class="spinner"></div>
+                <p id="loadingText">AI is analyzing your spread...</p>
+            </div>
+            <div id="aiInterpretation" class="interpretation"></div>
+            <button class="new-spread-btn" id="newSpreadBtn">New Reading</button>
+        </div>
+
+        <!-- Dream interpretation chat screen -->
+        <div id="dreamChatScreen" class="screen">
+            <button class="back-btn" id="backToMainFromDream">← Back</button>
+            <h2>🌙 Dream Interpretation</h2>
+            <p class="subtitle">Describe your dream — AI will help understand its meaning</p>
+
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai-message">
+                        <div class="message-avatar">🔮</div>
+                        <div class="message-content">
+                            Hello! ✨ I'll help you understand the meaning of your dream.
+                            Describe what you dreamed about — details, emotions, symbols.
+                            The more detailed, the more accurate the interpretation! 🌙
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <textarea id="dreamInput" class="chat-input" placeholder="Describe your dream..." rows="3"
+                        maxlength="1000"></textarea>
+                    <button id="sendDreamBtn" class="send-btn">➤</button>
+                </div>
+
+                <div class="chat-hints">
+                    <span class="hint-tag" onclick="fillDreamHint('flying over a city')">✈️ Flying</span>
+                    <span class="hint-tag" onclick="fillDreamHint('lost my teeth')">🦷 Teeth</span>
+                    <span class="hint-tag" onclick="fillDreamHint('water, ocean')">🌊 Water</span>
+                    <span class="hint-tag" onclick="fillDreamHint('being chased, running')">🏃 Chase</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Settings Button -->
+    <button id="apiSettingsBtn" class="api-settings-btn">⚙️ AI Settings</button>
+
+    <!-- Settings Modal -->
+    <div id="apiSettingsModal" class="modal">
+        <div class="modal-content">
+            <h3>Hugging Face API Settings</h3>
+            <input type="password" id="apiKeyInput" placeholder="Enter your API token">
+            <p class="hint">
+                Get a free token at
+                <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a>
+            </p>
+            <p class="hint-small">
+                1. Create account → 2. Settings → 3. Access Tokens → 4. Create Token (type: Write)
+            </p>
+            <div class="modal-buttons">
+                <button id="saveApiKey" class="modal-btn save">Save</button>
+                <button id="closeSettings" class="modal-btn close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="tarot-data.js"></script>
+    <script src="tarot-images.js"></script>
+    <script src="zodiac-data.js"></script>
+    <script src="natal-chart-data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
