@@ -252,7 +252,7 @@ ${cardsInfo}
                 model: 'MiniMaxAI/MiniMax-M2.1:novita',
                 stream: false,
                 temperature: 0.7,
-                max_tokens: 3000,  // 🔥 УВЕЛИЧИЛИ с 800 до 3000!
+                max_tokens: 999999,  // 🔥 УВЕЛИЧИЛИ с 800 до 3000!
                 top_p: 0.95
             })
         });
